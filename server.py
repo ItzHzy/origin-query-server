@@ -125,6 +125,7 @@ async def msg_handler(msg, ws):
                 await player.ws.send(json.dumps(ret_msg))
     
     elif msg["type"] == "Ready":
+        allReady = True
         gameID = msg["data"]["gameID"]
         playerID = msg["data"]["playerID"]
         if gameID in gameListings:
@@ -133,31 +134,31 @@ async def msg_handler(msg, ws):
             for player in game.players:
                 if player.playerID == playerID:
                     player.isReady = True
+
             for player in game.players:
                 if player.isReady == False:
-                    ret_msg = {
-                            "type": "Ready",
-                            "data": {
-                                "gameID": gameID,
-                                "playerID": playerID
-                            }
-                        }
+                    allReady = False
 
-                    for player in game.players:
-                        await player.ws.send(json.dumps(ret_msg))
-
-                    return
-
+            if (allReady and len(game.players) == game.numPlayers):
                 ret_msg = {
                     "type": "Start Game",
                     "data": {
                         "numPlayers": game.numPlayers,
-                        "players": [player.playerID for player in game.players]
+                        "players": [[player.playerID, player.name, player.lifeTotal, player.flavorText, player.pfp] for player in game.players]
                     }
                 }
 
-                for player in game.players:
-                        await player.ws.send(json.dumps(ret_msg))
+            else:
+                ret_msg = {
+                    "type": "Ready",
+                    "data": {
+                        "gameID": gameID,
+                        "playerID": playerID
+                    }
+                }     
+                
+            for player in game.players:
+                    await player.ws.send(json.dumps(ret_msg))
 
     elif msg["type"] == "Not Ready":
         gameID = msg["data"]["gameID"]
@@ -179,7 +180,6 @@ async def msg_handler(msg, ws):
                 await player.ws.send(json.dumps(ret_msg))
 
     elif msg["type"] == "Choose Deck":
-        print(msg["data"])
         gameID = msg["data"]["gameID"]
         playerID = msg["data"]["playerID"]
         if gameID in gameListings:

@@ -6,6 +6,9 @@ class Player():
         self.game = game
         self.name = name
         self.playerID = "P-" + str(uuid1())
+        self.pfp = None
+        self.flavorText = "Someday, someone will best me. But it won't be today, and it won't be you."
+
         self.lifeTotal = 20
         self.deck = []
         self.hand = set()
