@@ -169,6 +169,12 @@ class Keyword(Enum):
     PROWESS = auto()
 
 class Subtype(Enum):
+    ISLAND = auto()
+    PLAINS = auto()
+    MOUNTAIN = auto()
+    FOREST = auto()
+    SWAMP = auto()
+
     AURA = auto()
     SAGA = auto()
     EQUIPTMENT = auto()
