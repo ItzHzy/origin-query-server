@@ -2,8 +2,7 @@ import asyncio
 import websockets
 import json
 from uuid import uuid1
-from gameElements import Game, Player
-
+from gameElements import *
 
 # UUID -> Game
 gameListings = {}
