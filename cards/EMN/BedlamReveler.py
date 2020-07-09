@@ -1,12 +1,12 @@
-from lib.enumeratedTypes import * # pylint: disable=unused-wildcard-import
-from lib.combatFunctions import * # pylint: disable=unused-wildcard-import
-from lib.gameElements import * # pylint: disable=unused-wildcard-import
-from lib.gameActions import * # pylint: disable=unused-wildcard-import
-from lib.abilities import * # pylint: disable=unused-wildcard-import
+from enumeratedTypes import * 
+from combatFunctions import * 
+from gameElements import * 
+from gameActions import * 
+from abilities import * 
 
 class BedlamReveler(Card):
     def __init__(self, game, player):
-        super().__init__(self, game, player)
+        super().__init__(self, game, player) 
 
         game.addKeywordAbility(Keyword.PROWESS)
 
