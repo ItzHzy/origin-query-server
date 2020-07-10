@@ -11,7 +11,7 @@ cards_db = db['cards']
 for card in cards:
     oracle_id = card['oracle_id']
     name = card['name']
-    fname =  '.\\cards\\' + card['set'].upper() + '\\' + name.replace('\'', '').replace('-', '').replace(' ', '').replace(',', '') + '.py'
+    fname =  './cards/' + card['set'].upper() + '/' + name.replace('\'', '').replace('-', '').replace(' ', '').replace(',', '') + '.py'
     cards_db.insert(dict(name=name, oracle_id=oracle_id, filepath=fname))
 
 print(cards_db.find_one(oracle_id='b2c6aa39-2d2a-459c-a555-fb48ba993373'))
