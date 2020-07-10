@@ -6,7 +6,7 @@ from abilities import *
 
 class Swamp(Card):
     def __init__(self, game, player):
-        super().__init__(self, game, player)
+        super(Swamp, self).__init__(game, player)
 
         c1 = (False, ((tap, self)))
 
@@ -14,8 +14,8 @@ class Swamp(Card):
         e1.effect = [[addMana, self.controller, Color.BLACK, 1]]
         e1.rulesText = "T: Add B."
 
-        a1 = ActivatedAbility(game, c1, e1, set(Zone.FIELD), True)
+        a1 = ActivatedAbility(game, c1, e1, {Zone.FIELD}, True)
 
-        self.characteristics[Layer.BASE] = ("Swamp", 0, 0, [a1], set(Supertype.BASIC, Type.LAND, Subtype.SWAMP), set(Color.COLORLESS))
+        self.characteristics[Layer.BASE] = ("Swamp", 0, 0, [a1], {Supertype.BASIC, Type.LAND, Subtype.SWAMP}, {Color.COLORLESS})
 
         self.updateCharacteristics()
