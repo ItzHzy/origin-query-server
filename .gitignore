@@ -3,5 +3,5 @@ lib/__pycache__
 Server.code-workspace
 /venv
 /.vscode
-/assets/database.py 
+/assets/db.db
 /assets/dominaria.json
