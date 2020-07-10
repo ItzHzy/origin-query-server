@@ -1,7 +1,7 @@
 import dataset
 import json
 
-with open('.\\assets\dominaria.json') as fp: 
+with open('.\\assets\dominaria.json') as fp: # pylint: disable=anomalous-backslash-in-string
     cards = json.load(fp) 
 
 db = dataset.connect('sqlite:///assets//db.db')
