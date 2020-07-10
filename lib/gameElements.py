@@ -1,6 +1,7 @@
 from enumeratedTypes import * 
 from uuid import uuid1
 from database import cards_db
+from os.path import normpath
 
 class Player():
     def __init__(self, game, name, ws):
@@ -417,7 +418,7 @@ class Game():
         for player in self.players:
             for key in player.cards:
                 result = cards_db.find_one(oracle_id=key)
-                module_ = __import__(result['filepath'])
+                module_ = __import__(normpath(result['filepath']))
                 class_ = getattr(module_, result['name'])
                 for _ in range(player.cards[key]):
                     player.cardObjs.append(class_(self, player))
