@@ -1,5 +1,6 @@
-from enumeratedTypes import * # pylint: disable=unused-wildcard-import
+from enumeratedTypes import * 
 from uuid import uuid1
+from database import cards_db
 
 class Player():
     def __init__(self, game, name, ws):
@@ -29,6 +30,7 @@ class Player():
         self.isHost = False
         self.ws = ws
         self.cards = None
+        self.cardObjs = []
         self.isReady = False
 
     def playerInit(self):
@@ -410,6 +412,16 @@ class Game():
         
     def removePlayerFromGame(self, player):
         self.players.remove(player)
+
+    def prep(self):
+        for player in self.players:
+            for key in player.cards:
+                result = cards_db.find_one(oracle_id=key)
+                module_ = __import__(result['filepath'])
+                class_ = getattr(module_, result['name'])
+                for _ in range(player.cards[key]):
+                    player.cardObjs.append(class_(self, player))
+                    
 
 class TargetRestriction():
     def __init__(self, game, rulesText):
