@@ -5,8 +5,8 @@ from gameActions import *
 from abilities import * 
 
 class Swamp(Card):
-    def __init__(self, game, player):
-        super(Swamp, self).__init__(game, player)
+    def __init__(self, game, player, key):
+        super(Swamp, self).__init__(game, player, key)
 
         c1 = (False, ((tap, self)))
 

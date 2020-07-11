@@ -62,7 +62,7 @@ def setLife(game, source, player, newTotal):
     else:
         evaluate(game, gainLife, player, (newTotal - player.getLife()))
 
-def drawCard(game, player):
+async def drawCard(game, player):
     """Selected player draws a card
 
     Args:
@@ -73,9 +73,9 @@ def drawCard(game, player):
         None
     """
     card = player.getTopOfDeck()
-    evaluate(game, deckToHand, card)
+    await evaluate(game, deckToHand, card)
 
-def drawCards(game, player, numToDraw):
+async def drawCards(game, player, numToDraw):
     """Draw multiple cards
 
     Args:
@@ -87,7 +87,7 @@ def drawCards(game, player, numToDraw):
         None
     """
     for i in range(numToDraw): # pylint: disable=unused-variable
-        evaluate(game, drawCard, player)
+        await evaluate(game, drawCard, player)
 
 def mill(game, player):
     """Selected player mills one card
@@ -520,7 +520,7 @@ def isReplaced(*args):
     
     return False
 
-def evaluate(*args):
+async def evaluate(*args):
     """Important method for the engine. Detailed in LexMagico.md
     
     Normal Arguments:
@@ -532,10 +532,22 @@ def evaluate(*args):
         None
     """
     game = args[0]
-    rules = game.LE["Rules"][args[1].__name__]
-    allowances = game.LE["Allowances"][args[1].__name__]
-    replacements = game.LE["Replacements"][args[1].__name__]
-    otherTriggers = game.LE["Triggers"][args[1].__name__]
+    try:
+        rules = game.LE["Rules"][args[1].__name__]
+    except:
+        rules = []
+    try:
+        allowances = game.LE["Allowances"][args[1].__name__]
+    except:
+        allowances = []
+    try:
+        replacements = game.LE["Replacements"][args[1].__name__]
+    except:
+        replacements = []
+    try:
+        otherTriggers = game.LE["Triggers"][args[1].__name__]
+    except:
+        otherTriggers = []
 
     someSet = set()
     for rule in rules:
@@ -566,19 +578,19 @@ def evaluate(*args):
         chosen.resolveEffect()
     
     if len(args) == 2:
-        args[1](args[0])
+        await args[1](args[0])
     elif len(args) == 3:
-        args[1](args[0], args[2])
+        await args[1](args[0], args[2])
     elif len(args) == 4:
-        args[1](args[0], args[2], args[3])
+        await args[1](args[0], args[2], args[3])
     elif len(args) == 5:
-        args[1](args[0], args[2], args[3], args[4])
+        await args[1](args[0], args[2], args[3], args[4])
     elif len(args) == 6:
-        args[1](args[0], args[2], args[3], args[4], args[5])
+        await args[1](args[0], args[2], args[3], args[4], args[5])
     elif len(args) == 7:
-        args[1](args[0], args[2], args[3], args[4], args[5], args[6])
+        await args[1](args[0], args[2], args[3], args[4], args[5], args[6])
     elif len(args) == 8:
-        args[1](args[0], args[2], args[3], args[4], args[5], args[6], args[7])
+        await args[1](args[0], args[2], args[3], args[4], args[5], args[6], args[7])
 
     for tracker in game.trackers:
         tracker.run()

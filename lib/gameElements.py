@@ -1,8 +1,10 @@
 from enumeratedTypes import * 
+import gameActions
 from uuid import uuid1
 from database import cards_db
 from os.path import normpath
 from importlib import import_module
+from random import shuffle
 
 class Player():
     def __init__(self, game, name, ws):
@@ -32,10 +34,8 @@ class Player():
         self.isHost = False
         self.ws = ws
         self.cards = None
-        self.cardObjs = []
         self.isReady = False
 
-    def playerInit(self):
         self.game.AddZone(self, Zone.DECK, self.getDeck())
         self.game.AddZone(self, Zone.FIELD, self.getField())
         self.game.AddZone(self, Zone.GRAVE, self.getGrave())
@@ -58,7 +58,7 @@ class Player():
         return self.deck
 
     def getTopOfDeck(self):
-        self.deck[0]
+        return self.deck[0]
 
     def getPlayerID(self):
         return self.playerID
@@ -70,10 +70,11 @@ class Player():
         self.lifeTotal = newTotal
 
 class Card():
-    def __init__(self, game, player):
+    def __init__(self, game, player, oracle):
         self.name = None
         self.game = game
-        self.instanceID = game.getNewInstanceID()
+        self.oracle = oracle
+        self.instanceID = "C-" + str(uuid1())
         self.memID = None
         game.allCards[self.instanceID] = self
 
@@ -95,7 +96,7 @@ class Card():
         self.currentZone = None
 
         self.owner = player
-        self.controller = None
+        self.controller = player
 
         self.effects = []
         self.abilities = []
@@ -176,6 +177,7 @@ class Card():
             self.cardTypes = i[4]
             self.colors = i[5]
 
+        self.controller = self.owner
         for i in self.characteristics[Layer.TWO]:
             self.controller = i[0]
 
@@ -275,6 +277,16 @@ class Card():
         self.damageMarked = 0
         self.effect = None
 
+    def getStats(self):
+        ans = []
+        ans.append(self.oracle)
+        ans.append(self.name)
+        ans.append(self.power)
+        ans.append(self.toughness)
+        ans.append(self.controller.playerID)
+        ans.append([ability.effect.rulesText for ability in self.abilities])
+        return ans
+
 class MFCard():
     def __init__(self, face1, face2, splitType):
         self.faces = (face1, face2)
@@ -295,7 +307,7 @@ class Game():
         self.players = []  # List of all players in a game
         self.playersDict = {} # Used for turn order
         self.blindingEternities = []  # Used for tokens or cards that don't exist in a deck normally ex. the back half of a DFC
-        self.LE = {}  # Lex Magico
+        self.LE = {"Rules": {}, "Allowances": {}, "Triggers": {}, "Replacements": {}}  # Lex Magico
         self.stack = []
 
         self.zones = {}
@@ -415,15 +427,18 @@ class Game():
     def removePlayerFromGame(self, player):
         self.players.remove(player)
 
-    def prep(self):
+    async def prep(self):
+
         for player in self.players:
             for key in player.cards:
                 result = cards_db.find_one(oracle_id=key)
                 module_ = import_module(result['filepath'])
                 class_ = getattr(module_, result['name'])
                 for _ in range(player.cards[key]):
-                    player.cardObjs.append(class_(self, player))
-                    
+                    player.deck.append(class_(self, player, key))
+            shuffle(player.deck)
+            await gameActions.drawCards(self, player, 7)
+
 
 class TargetRestriction():
     def __init__(self, game, rulesText):

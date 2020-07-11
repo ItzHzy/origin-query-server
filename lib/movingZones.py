@@ -1,5 +1,7 @@
 from enumeratedTypes import *  # pylint: disable=unused-wildcard-import
 from gameElements import * # pylint: disable=unused-wildcard-import
+import json
+import asyncio
 
 # TODO: Add indexing options for deck 
 def commandToField(game, card):
@@ -238,17 +240,60 @@ def deckToField(game, card):
     newZone.add(card)
     game.applyModifiers(card)
 
-def deckToHand(game, card):
+async def deckToHand(game, card):
     control = card.getController()
     own = card.getOwner()
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[own][Zone.HAND]
 
-    card.clearProperties()
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
+    public_msg = {
+        "type": "State Update",
+        "data": {
+            "cards" : [],
+            "players" : [{
+                "playerID": control.playerID,
+                "type": "Zone Count Update",
+                "data": {
+                    "type" : "Deck",
+                    "num" : len(oldZone)
+                }
+            },
+            {
+                "playerID": control.playerID,
+                "type": "Zone Count Update",
+                "data": {
+                    "type" : "Hand",
+                    "num" : len(newZone)
+                }
+            }]
+        }
+    }
+
+    
+    data = card.getStats()
+    data.append('hand')
+    private_msg = {
+        "type": "State Update",
+        "data": {
+            "cards": [{
+                "instanceID": card.instanceID,
+                "type": "Card Update",
+                "data": data
+            }],
+            "players": []
+        }
+    }
+
+    for player in game.players:
+        await player.ws.send(json.dumps(public_msg))
+
+    await own.ws.send(json.dumps(private_msg))
+
 
 def deckToStack(game, card):
     control = card.getController()

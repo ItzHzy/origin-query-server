@@ -5,8 +5,8 @@ from gameActions import *
 from abilities import * 
 
 class Island(Card):
-    def __init__(self, game, player):
-        super(Island, self).__init__(game, player)
+    def __init__(self, game, player, key):
+        super(Island, self).__init__(game, player, key)
 
         c1 = (False, ((tap, self)))
 

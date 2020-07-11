@@ -142,7 +142,6 @@ async def msg_handler(msg, ws):
                         allReady = False
 
                 if (allReady and len(game.players) == game.numPlayers):
-                    game.prep()
                     ret_msg = {
                         "type": "Start Game",
                         "data": {
@@ -162,6 +161,8 @@ async def msg_handler(msg, ws):
                     
                 for player in game.players:
                         await player.ws.send(json.dumps(ret_msg))
+
+                await game.prep()
 
         elif msg["type"] == "Not Ready":
             gameID = msg["data"]["gameID"]
