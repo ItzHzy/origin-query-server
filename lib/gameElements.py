@@ -1,5 +1,5 @@
 from enumeratedTypes import * 
-import gameActions
+from gameActions import evaluate, drawCards
 from uuid import uuid1
 from database import cards_db
 from os.path import normpath
@@ -75,7 +75,7 @@ class Card():
         self.game = game
         self.oracle = oracle
         self.instanceID = "C-" + str(uuid1())
-        self.memID = None
+        self.memID = "M-" + str(uuid1())
         game.allCards[self.instanceID] = self
 
         self.cardTypes = set()
@@ -147,12 +147,6 @@ class Card():
         if kind not in self.cardTypes:
             return False
         return True
-
-    def getInstanceID(self):
-        return self.instanceID
-
-    def getMemID(self):
-        return self.memID
 
     def addCharacteristic(self, layer, item):
         self.characteristics[layer].append(item)
@@ -230,24 +224,6 @@ class Card():
             self.power = self.toughness
             self.toughness = t
 
-    def getName(self):
-        return self.name
-
-    def getController(self):
-        return self.controller
-
-    def getOwner(self):
-        return self.owner
-
-    def getPower(self):
-        return self.power
-
-    def getToughness(self):
-        return self.toughness
-
-    def getLoyalty(self):
-        return self.counters[Counter.LOYALTY]
-
     def isAttached(self):
         pass
 
@@ -256,6 +232,7 @@ class Card():
         pass
 
     def reset(self):
+        self.memID = "M-" + str(uuid1())
         self.property = {}
         self.characteristics[Layer.ONE] = []
         self.characteristics[Layer.TWO] = []
@@ -276,16 +253,6 @@ class Card():
         self.counters = {}
         self.damageMarked = 0
         self.effect = None
-
-    def getStats(self):
-        ans = []
-        ans.append(self.oracle)
-        ans.append(self.name)
-        ans.append(self.power)
-        ans.append(self.toughness)
-        ans.append(self.controller.playerID)
-        ans.append([ability.effect.rulesText for ability in self.abilities])
-        return ans
 
 class MFCard():
     def __init__(self, face1, face2, splitType):
@@ -312,17 +279,10 @@ class Game():
 
         self.zones = {}
         self.allCards = {}
-        self.GAT = set() # Global Ability Table
-        self.GMT = set() # Global Modifier Table
+        self.GAT = {} # Global Ability Table
+        self.GMT = {} # Global Modifier Table
         self.costModifiers = []
         self.trackers = []
-
-        self.instanceIDPool = 0
-        self.playerIDPool = 0
-        self.LinkedIDPool = 0
-        self.memIDPool = 0
-        self.abilityIDPool = 0
-        self.modifierIDPool = 0
 
         self.activePlayer = None
         self.currPhase = None
@@ -341,30 +301,6 @@ class Game():
         #     if player != self.players[-1]:
         #         self.playersDict[player] = self.players[index + 1]
         # self.playersDict[self.players[-1]] = self.players[0]
-
-    def getNewPlayerID(self):
-        self.playerIDPool += 1
-        return self.playerIDPool
-
-    def getNewLinkedID(self):
-        self.LinkedIDPool += 1
-        return self.LinkedIDPool
-
-    def getNewMemID(self):
-        self.memIDPool += 1
-        return self.memIDPool
-
-    def getNewAbilityID(self):
-        self.abilityIDPool += 1
-        return self.abilityIDPool
-
-    def getNewModiferID(self):
-        self.modifierIDPool += 1
-        return self.modifierIDPool
-
-    def getNewInstanceID(self):
-        self.instanceIDPool += 1
-        return self.instanceIDPool
 
     def getCard(self, instanceID):
         pass
@@ -387,18 +323,17 @@ class Game():
                 return card
         return None
 
-    def push(self, obj):
-        if (isinstance(obj, Card)):
-            pass
-        elif (isinstance(obj, Effect)):
-            pass
+    async def resolve(self, obj):
+        for effect in obj.effect:
+            await evaluate(self, *effect)
 
-    def pop(self):
-        self.replacedBy = []
+    async def push(self, obj):
         pass
 
-    def getActivePlayer(self):
-        return self.activePlayer
+    def pop(self):
+
+        self.replacedBy = []
+        pass
 
     def getNextPlayer(self, player):
         return self.playersDict[player]
@@ -419,6 +354,7 @@ class Game():
         return lst
 
     def addKeywordAbility(self, keyword):
+        # Complete in __init__ for ability
         pass
 
     def addPlayerToGame(self, player):
@@ -437,8 +373,7 @@ class Game():
                 for _ in range(player.cards[key]):
                     player.deck.append(class_(self, player, key))
             shuffle(player.deck)
-            await gameActions.drawCards(self, player, 7)
-
+            await drawCards(self, player, 7)
 
 class TargetRestriction():
     def __init__(self, game, rulesText):
@@ -553,6 +488,7 @@ class GameAllowance():
             return gameRuleViolation
 
 class ModifierApplier():
+    # Chang name to modifier applier
     def __init__(self, modifiersToApply, targetRestriction):
         self.modifiersToApply = modifiersToApply
         self.targetRestriction = targetRestriction
@@ -599,10 +535,16 @@ class Cost():
 
     def canBePaid(self, game, player):
         # Returns True if the cost can be paid by player, False otherwise
-        pass
+        return True # Temporary
 
-    def pay(self, game, player):
-        pass
+    async def pay(self, game, player):
+        # Return True if cost is paid, False otherwise
+        if self.manaCost != {}:
+            pass
+        if self.additional != []:
+            for cost in self.additional:
+                await evaluate(game, *cost)
+        return True # Temporary
 
 class CostModifier():
     def __init__(self, cost, costType):

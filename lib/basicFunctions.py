@@ -1,8 +1,8 @@
-from enumeratedTypes import * # pylint: disable=unused-wildcard-import
-from gameElements import * # pylint: disable=unused-wildcard-import
-from movingZones import * # pylint: disable=unused-wildcard-import
-from combatFunctions import * # pylint: disable=unused-wildcard-import
-from gameActions import * # pylint: disable=unused-wildcard-import
+from enumeratedTypes import * 
+from gameElements import * 
+from movingZones import * 
+from combatFunctions import * 
+from gameActions import * 
 from copy import deepcopy
 
 def doPhaseActions(game):
@@ -301,6 +301,12 @@ def declareCast(game, instanceID, player):
 
     # Evaluate cast
     evaluate(game, cast, card)
+
+async def declareActivation(game, abilityID, player):
+    ability = game.GAT[abilityID]
+    result = Effect(ability.source)
+    result.cost = addCosts(game, ability, ability.cost[0], ability.cost[1])
+    await evaluate(game, activateAbility, result)
 
 def decideSplice(card):
     pass

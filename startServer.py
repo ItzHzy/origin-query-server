@@ -3,7 +3,7 @@ import websockets
 import json
 from uuid import uuid1
 from gameElements import *
-
+from time import sleep
 # UUID -> Game
 gameListings = {}
 
@@ -150,6 +150,12 @@ async def msg_handler(msg, ws):
                         }
                     }
 
+                    try:
+                        for player in game.players:
+                            await player.ws.send(json.dumps(ret_msg))
+                    finally:
+                        await game.prep()
+
                 else:
                     ret_msg = {
                         "type": "Ready",
@@ -157,12 +163,10 @@ async def msg_handler(msg, ws):
                             "gameID": gameID,
                             "playerID": playerID
                         }
-                    }     
-                    
-                for player in game.players:
-                        await player.ws.send(json.dumps(ret_msg))
+                    }
 
-                await game.prep()
+                    for player in game.players:
+                        await player.ws.send(json.dumps(ret_msg))
 
         elif msg["type"] == "Not Ready":
             gameID = msg["data"]["gameID"]
@@ -184,6 +188,7 @@ async def msg_handler(msg, ws):
                     await player.ws.send(json.dumps(ret_msg))
 
         elif msg["type"] == "Choose Deck":
+            print("Choose Deck")
             gameID = msg["data"]["gameID"]
             playerID = msg["data"]["playerID"]
             if gameID in gameListings:
@@ -191,6 +196,12 @@ async def msg_handler(msg, ws):
                 for player in game.players:
                     if player.playerID == playerID:
                         player.cards = msg["data"]["deck"]
+            
+            msg = {
+                "type": "Choose Deck"
+            }
+
+            await ws.send(json.dumps(msg))
 
 if __name__ == "__main__":
     startServer()

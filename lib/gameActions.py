@@ -1,6 +1,5 @@
-from enumeratedTypes import * # pylint: disable=unused-wildcard-import
-from gameElements import * # pylint: disable=unused-wildcard-import
-from movingZones import * # pylint: disable=unused-wildcard-import
+from enumeratedTypes import *
+from movingZones import deckToHand, deckToGrave, fieldToGrave
 
 def play():
     pass
@@ -8,8 +7,15 @@ def play():
 def playLand():
     pass
 
-def cast(card):
+def cast(game, card):
     pass
+
+async def activateAbility(game, effect):
+    if effect.canBePaid() and effect.pay():
+        if effect.source.isManaAbility:
+            await game.resolve(effect)
+        else:
+            await game.push(effect)
 
 def loseLife(game, source, player, amountToLose):
     """Set the life total for selected player to (current life - the amount to lose)
@@ -86,7 +92,7 @@ async def drawCards(game, player, numToDraw):
     Returns:
         None
     """
-    for i in range(numToDraw): # pylint: disable=unused-variable
+    for _ in range(numToDraw):
         await evaluate(game, drawCard, player)
 
 def mill(game, player):
@@ -113,7 +119,7 @@ def millCards(game, player, numToMill):
     Returns:
         None
     """
-    for i in range(numToMill): # pylint: disable=unused-variable
+    for _ in range(numToMill):
         evaluate(game, mill, player)
 
 def untap(game, card):
@@ -573,7 +579,7 @@ async def evaluate(*args):
         if replacement.isActive() and replacement.getSource() not in game.replacedBy and replacement.getFunc()(args[1], args[2:]):
             someOtherSet.add(replacement)
     if len(someOtherSet) != 0:
-        chosen = choose(someOtherSet, game.getActivePlayer(), InquiryType.REPLACEMENT , 1)
+        chosen = choose(someOtherSet, game.activePlayer, InquiryType.REPLACEMENT , 1)
         game.replacedBy.append(chosen.getSource)
         chosen.resolveEffect()
     

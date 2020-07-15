@@ -1,11 +1,10 @@
-from enumeratedTypes import *  # pylint: disable=unused-wildcard-import
-from gameElements import * # pylint: disable=unused-wildcard-import
+from enumeratedTypes import *
 import json
 import asyncio
 
 # TODO: Add indexing options for deck 
 def commandToField(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.COMMAND_ZONE]
     newZone = game.zones[control][Zone.FIELD]
 
@@ -16,8 +15,8 @@ def commandToField(game, card):
     game.applyModifiers(card)
 
 def commandToHand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.COMMAND_ZONE]
     newZone = game.zones[own][Zone.HAND]
 
@@ -28,7 +27,7 @@ def commandToHand(game, card):
     game.applyModifiers(card)
 
 def commandToStack(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.COMMAND_ZONE]
     newZone = game.zones[control][Zone.STACK]
 
@@ -39,7 +38,7 @@ def commandToStack(game, card):
     game.applyModifiers(card)
 
 def graveToField(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[control][Zone.FIELD]
 
@@ -50,8 +49,8 @@ def graveToField(game, card):
     game.applyModifiers(card)
 
 def graveToHand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[own][Zone.HAND]
 
@@ -62,7 +61,7 @@ def graveToHand(game, card):
     game.applyModifiers(card)
     
 def graveToStack(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[control][Zone.STACK]
 
@@ -73,8 +72,8 @@ def graveToStack(game, card):
     game.applyModifiers(card)
 
 def graveToDeck(game, card, indexToInsert):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[own][Zone.DECK]
 
@@ -85,7 +84,7 @@ def graveToDeck(game, card, indexToInsert):
     game.applyModifiers(card)
 
 def graveToExile(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[control][Zone.EXILE]
 
@@ -96,12 +95,12 @@ def graveToExile(game, card):
     game.applyModifiers(card)
 
 def addToField(game, card):
-    newZone = game.zones[card.getController()][Zone.FIELD]
+    newZone = game.zones[card.controller][Zone.FIELD]
     newZone.add(card)
     game.applyModifiers(card)
 
 def fieldToField(game, card, player):
-    control = card.getController()
+    control = card.controller
     oldZone = card.currentZone
     newZone = game.zones[control][Zone.HAND]
     
@@ -109,8 +108,8 @@ def fieldToField(game, card, player):
     newZone.add(card)
 
 def fieldToHand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.FIELD]
     newZone = game.zones[own][Zone.HAND]
 
@@ -122,8 +121,8 @@ def fieldToHand(game, card):
         game.applyModifiers(card)
 
 def fieldToGrave(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.FIELD]
     newZone = game.zones[own][Zone.GRAVE]
 
@@ -135,8 +134,8 @@ def fieldToGrave(game, card):
         game.applyModifiers(card)
 
 def fieldToDeck(game, card, indexToInsert):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.FIELD]
     newZone = game.zones[own][Zone.HAND]
 
@@ -148,7 +147,7 @@ def fieldToDeck(game, card, indexToInsert):
         game.applyModifiers(card)
 
 def fieldToExile(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.FIELD]
     newZone = game.zones[control][Zone.EXILE]
 
@@ -160,8 +159,8 @@ def fieldToExile(game, card):
         game.applyModifiers(card)
 
 def fieldToCommand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.FIELD]
     newZone = game.zones[own][Zone.COMMAND_ZONE]
 
@@ -173,7 +172,7 @@ def fieldToCommand(game, card):
         game.applyModifiers(card)
 
 def handToField(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[control][Zone.FIELD]
 
@@ -184,7 +183,7 @@ def handToField(game, card):
     game.applyModifiers(card)
 
 def handToStack(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[control][Zone.STACK]
 
@@ -195,8 +194,8 @@ def handToStack(game, card):
     game.applyModifiers(card)
 
 def handToGrave(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[own][Zone.GRAVE]
 
@@ -207,8 +206,8 @@ def handToGrave(game, card):
     game.applyModifiers(card)
 
 def handToDeck(game, card, indexToInsert):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[own][Zone.DECK]
 
@@ -219,7 +218,7 @@ def handToDeck(game, card, indexToInsert):
     game.applyModifiers(card)
 
 def handToExile(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[control][Zone.EXILE]
 
@@ -230,7 +229,7 @@ def handToExile(game, card):
     game.applyModifiers(card)
 
 def deckToField(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[control][Zone.FIELD]
 
@@ -241,8 +240,8 @@ def deckToField(game, card):
     game.applyModifiers(card)
 
 async def deckToHand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[own][Zone.HAND]
 
@@ -275,15 +274,24 @@ async def deckToHand(game, card):
     }
 
     
-    data = card.getStats()
-    data.append('hand')
+    abilities = [ability.rulesText for ability in card.abilities]
+
     private_msg = {
         "type": "State Update",
         "data": {
             "cards": [{
                 "instanceID": card.instanceID,
-                "type": "Card Update",
-                "data": data
+                "type": "New Object",
+                "data": {
+                    "name": card.name,
+                    "oracle": card.oracle,
+                    "memID": card.memID,
+                    "power": card.power,
+                    "toughness": card.toughness,
+                    "controller": card.controller.playerID,
+                    "abilities": abilities,
+                    "zone": "hand"
+                }
             }],
             "players": []
         }
@@ -296,7 +304,7 @@ async def deckToHand(game, card):
 
 
 def deckToStack(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[control][Zone.STACK]
 
@@ -307,8 +315,8 @@ def deckToStack(game, card):
     game.applyModifiers(card)
 
 def deckToGrave(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[own][Zone.GRAVE]
 
@@ -319,7 +327,7 @@ def deckToGrave(game, card):
     game.applyModifiers(card)
 
 def deckToExile(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[control][Zone.EXILE]
 
@@ -330,12 +338,12 @@ def deckToExile(game, card):
     game.applyModifiers(card)
 
 def addToStack(game, card):
-    newZone = game.zones[card.getController()][Zone.STACK]
+    newZone = game.zones[card.controller][Zone.STACK]
     newZone.insert(0, card)
     game.applyModifiers(card)
         
 def stackToField(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.STACK]
     newZone = game.zones[control][Zone.FIELD]
 
@@ -345,8 +353,8 @@ def stackToField(game, card):
         game.applyModifiers(card)
 
 def stackToHand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.STACK]
     newZone = game.zones[own][Zone.HAND]
 
@@ -356,8 +364,8 @@ def stackToHand(game, card):
         game.applyModifiers(card)
 
 def stackToGrave(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.STACK]
     newZone = game.zones[own][Zone.GRAVE]
 
@@ -367,8 +375,8 @@ def stackToGrave(game, card):
         game.applyModifiers(card)
 
 def stackToDeck(game, card, indexToInsert):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.STACK]
     newZone = game.zones[own][Zone.DECK]
 
@@ -378,7 +386,7 @@ def stackToDeck(game, card, indexToInsert):
         game.applyModifiers(card)
 
 def stackToExile(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.STACK]
     newZone = game.zones[control][Zone.EXILE]
 
@@ -388,8 +396,8 @@ def stackToExile(game, card):
         game.applyModifiers(card)
 
 def stackToCommand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.STACK]
     newZone = game.zones[own][Zone.COMMAND_ZONE]
 
@@ -399,7 +407,7 @@ def stackToCommand(game, card):
         game.applyModifiers(card)
 
 def exileToField(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.EXILE]
     newZone = game.zones[control][Zone.FIELD]
 
@@ -410,8 +418,8 @@ def exileToField(game, card):
     game.applyModifiers(card)
 
 def exileToHand(game, card):
-    control = card.getController()
-    own = card.getOwner()
+    control = card.controller
+    own = card.owner
     oldZone = game.zones[control][Zone.EXILE]
     newZone = game.zones[own][Zone.HAND]
 
@@ -422,7 +430,7 @@ def exileToHand(game, card):
     game.applyModifiers(card)
 
 def exileToStack(game, card):
-    control = card.getController()
+    control = card.controller
     oldZone = game.zones[control][Zone.EXILE]
     newZone = game.zones[control][Zone.STACK]
 
