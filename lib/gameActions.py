@@ -1,11 +1,11 @@
 from enumeratedTypes import *
-from movingZones import deckToHand, deckToGrave, fieldToGrave
+from movingZones import deckToHand, deckToGrave, fieldToGrave, handToField
 
 def play():
     pass
 
-def playLand():
-    pass
+async  def playLand(game, card):
+    await evaluate(game, handToField, card)
 
 def cast(game, card):
     pass

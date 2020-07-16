@@ -4,6 +4,8 @@ import json
 from uuid import uuid1
 from gameElements import *
 from time import sleep
+from gameActions import playLand, evaluate
+
 # UUID -> Game
 gameListings = {}
 
@@ -188,7 +190,6 @@ async def msg_handler(msg, ws):
                     await player.ws.send(json.dumps(ret_msg))
 
         elif msg["type"] == "Choose Deck":
-            print("Choose Deck")
             gameID = msg["data"]["gameID"]
             playerID = msg["data"]["playerID"]
             if gameID in gameListings:
@@ -202,6 +203,14 @@ async def msg_handler(msg, ws):
             }
 
             await ws.send(json.dumps(msg))
+
+        elif msg["type"] == "Play Land":
+            gameID = msg["data"]["gameID"]
+            playerID = msg["data"]["playerID"]
+            instanceID = msg["data"]["instanceID"]
+            if gameID in gameListings:
+                game = gameListings[gameID]
+                await evaluate(game, playLand, game.allCards[instanceID])
 
 if __name__ == "__main__":
     startServer()

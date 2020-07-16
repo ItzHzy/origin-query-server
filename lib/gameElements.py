@@ -371,7 +371,9 @@ class Game():
                 module_ = import_module(result['filepath'])
                 class_ = getattr(module_, result['name'])
                 for _ in range(player.cards[key]):
-                    player.deck.append(class_(self, player, key))
+                    card = class_(self, player, key)
+                    player.deck.append(card)
+                    self.allCards[card.instanceID] = card
             shuffle(player.deck)
             await drawCards(self, player, 7)
 
