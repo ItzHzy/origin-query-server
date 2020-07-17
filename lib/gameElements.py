@@ -5,6 +5,7 @@ from database import cards_db
 from os.path import normpath
 from importlib import import_module
 from random import shuffle
+import json
 
 class Player():
     def __init__(self, game, name, ws):
@@ -376,6 +377,18 @@ class Game():
                     self.allCards[card.instanceID] = card
             shuffle(player.deck)
             await drawCards(self, player, 7)
+
+    async def notifyAll(self, msg):
+        # Using a try/finally forces the code to be synchronous
+        try:
+            msg = json.dumps(msg)
+            for player in self.players:
+                await player.ws.send(msg)
+        finally:
+            pass
+
+    async def notify(self, msg, player):
+        await player.ws.send(json.dumps(msg))
 
 class TargetRestriction():
     def __init__(self, game, rulesText):

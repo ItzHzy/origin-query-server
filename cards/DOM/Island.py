@@ -13,7 +13,7 @@ class Island(Card):
 
         e1 = Effect(self)
         e1.effect = [[addMana, self.controller, Color.BLUE, 1]]
-        e1.rulesText = "T: Add U."
+        e1.rulesText = f"{{T}}: Add {{U}}."
 
         a1 = ActivatedAbility(game, self, c1, e1, {Zone.FIELD}, True)
 

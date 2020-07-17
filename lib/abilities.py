@@ -8,15 +8,7 @@ class Ability():
         self.isManaAbility = isManaAbility
         self.allowedZones = allowedZones
         self.specialTypes = set() # Ex. Variable
-
-    def getAllowedZones(self):
-        return self.allowedZones
-
-    def isKeyword(self):
-        if self.keywordName is None:
-            return False
-        return self.keywordName
-
+        game.GAT[self.abilityID] = self
 
 class ActivatedAbility(Ability):
     def __init__(self, game, source, cost, effect, allowedZones, isManaAbility=False, keywordName=None):

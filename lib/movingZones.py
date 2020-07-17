@@ -182,7 +182,7 @@ async def handToField(game, card):
     game.applyModifiers(card)
 
 
-    abilities = [[ability.abilityID, ability.rulesText] for ability in card.abilities if (Zone.HAND in ability.allowedZones)]
+    abilities = [[ability.abilityID, ability.rulesText] for ability in card.abilities if (Zone.FIELD in ability.allowedZones)]
     types = [str(typ) for typ in card.cardTypes]
     msg = {
         "type": "State Update",

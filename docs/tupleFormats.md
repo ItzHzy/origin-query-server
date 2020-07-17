@@ -12,3 +12,19 @@ card.additionalCosts = [types ex "Kicker", cost, indexOfEffect usually not 0]
             (False, ((action1, TargetRestriction1), 
             (action2, TargetRestriction2), 
             ...))
+
+msg = {
+        "type": "State Update",
+        "data": {
+            "cards": [{
+                "instanceID": card.instanceID,
+                "type": "New Object",
+                "data": {...}
+            }],
+            "players": [{
+                "playerID": control.playerID,
+                "type": "Zone Count Update",
+                "data": {...}
+            }]
+        }
+    }

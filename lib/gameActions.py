@@ -172,6 +172,20 @@ def tap(game, card):
     """
     card.tapped = True
 
+    msg = {
+        "type": "State Update",
+        "data": {
+            "cards": [{
+                "instanceID": card.instanceID,
+                "type": "Tap",
+                "data": {}
+            }],
+            "players": []
+        }
+    }
+
+    game.notifyAll(msg)
+
 def tapCards(game, cardsToTap):
     """Tap multiple cards
 
@@ -344,6 +358,22 @@ def addMana(game, player, color, amount):
         None
     """
     player.manaPool[color] += amount
+
+    msg = {
+        "type": "State Update",
+        "data": {
+            "cards": [],
+            "players": [{
+                "playerID": player.playerID,
+                "type": "Mana Update",
+                "data": {
+                    "num": amount
+                }
+            }]
+        }
+    }
+
+    game.notifyAll(msg)
 
 def attach(game, source, target):
     """Attach card to another card.
