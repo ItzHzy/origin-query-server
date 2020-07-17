@@ -519,18 +519,13 @@ class Effect():
         ...
     ]
     """
-    def __init__(self, source):
-        self.source = source
+    def __init__(self):
+        self.sourceAbility = None
+        self.sourceCard = None
         self.effect = None
         self.rulesText = None
         self.targets = [] # [[TargetRestriction1, chosenTargets1],[TargetRestriction2, chosenTargets2]]
         self.cost = None
-
-    def getText(self):
-        return self.rulesText
-
-    def getSource(self):
-        return self.source
 
     def addEffect(self, effect):
         """Structure of effect list:

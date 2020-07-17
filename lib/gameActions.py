@@ -11,8 +11,8 @@ def cast(game, card):
     pass
 
 async def activateAbility(game, effect):
-    if effect.canBePaid() and effect.pay():
-        if effect.source.isManaAbility:
+    if effect.cost.canBePaid(game, effect.sourceCard.controller) and effect.cost.pay(game, effect.sourceCard.controller):
+        if effect.sourceAbility.isManaAbility:
             await game.resolve(effect)
         else:
             await game.push(effect)

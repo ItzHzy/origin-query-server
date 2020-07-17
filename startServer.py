@@ -4,37 +4,38 @@ import json
 from uuid import uuid1
 from gameElements import *
 from time import sleep
-from gameActions import playLand, activateAbility, evaluate
+from gameActions import playLand, evaluate
+from basicFunctions import declareActivation
 
-# UUID -> Game
+# String to Game
 gameListings = {}
 
 # Websocket -> User
 connections = {}
 
-# String -> User
-users = {}
+verified = set()
 
 # Test Creds
 credentials = {'user' : 'pass', 
                 'user1': 'pass1',
                 'user2': 'pass2'}
 
-verified = set()
-
 class User():
     def __init__(self, name, connection):
         self.name = name
         self.connection = connection
+        self.inGame = False
+        self.currGame = None
+        self.currPlayer = None
 
 async def register(ws, name):
     verified.add(ws)
     user = User(name, ws)
-    users[name] = user
     connections[ws] = user
 
 async def unregister(ws):
     verified.remove(ws)
+    del connections[ws]
 
 async def sendAll(msg):
     for ws in verified:
@@ -67,6 +68,9 @@ async def msg_handler(msg, ws):
 
     else:
         user = connections[ws]
+        if user.inGame:
+            game = user.currGame
+            player = user.currPlayer
 
         if msg["type"] == "Create Game":
             gameID = "G-" + str(uuid1())
@@ -74,6 +78,9 @@ async def msg_handler(msg, ws):
             gameListings[gameID] = game
             player = Player(gameListings[gameID], user.name, ws)
             player.isHost = True
+            user.currGame = game
+            user.currPlayer = player
+            user.inGame = True
 
             ret_msg = {
                 "type": "Create Game",
@@ -113,6 +120,9 @@ async def msg_handler(msg, ws):
             if gameID in gameListings:
                 game = gameListings[gameID]
                 player = Player(gameListings[gameID], user.name, ws)
+                user.currGame = game
+                user.currPlayer = player
+                user.inGame = True
                 game.addPlayerToGame(player)
                 players = [[player.name, player.playerID] for player in game.players]
 
@@ -128,75 +138,58 @@ async def msg_handler(msg, ws):
                 for player in game.players:
                     await player.ws.send(json.dumps(ret_msg))
         
-        elif msg["type"] == "Ready":
+        elif msg["type"] == "Ready" and user.inGame:
             allReady = True
-            gameID = msg["data"]["gameID"]
-            playerID = msg["data"]["playerID"]
-            if gameID in gameListings:
 
-                game = gameListings[gameID]
-                for player in game.players:
-                    if player.playerID == playerID:
-                        player.isReady = True
+            user.currPlayer.isReady = True
 
-                for player in game.players:
-                    if player.isReady == False:
-                        allReady = False
+            for player in game.players:
+                if player.isReady == False:
+                    allReady = False
 
-                if (allReady and len(game.players) == game.numPlayers):
-                    ret_msg = {
-                        "type": "Start Game",
-                        "data": {
-                            "numPlayers": game.numPlayers,
-                            "players": [[player.playerID, player.name, player.lifeTotal, player.flavorText, player.pfp] for player in game.players]
-                        }
+            if allReady and len(game.players) == game.numPlayers:
+                ret_msg = {
+                    "type": "Start Game",
+                    "data": {
+                        "numPlayers": game.numPlayers,
+                        "players": [[player.playerID, player.name, player.lifeTotal, player.flavorText, player.pfp] for player in game.players]
                     }
+                }
 
-                    try:
-                        for player in game.players:
-                            await player.ws.send(json.dumps(ret_msg))
-                    finally:
-                        await game.prep()
-
-                else:
-                    ret_msg = {
-                        "type": "Ready",
-                        "data": {
-                            "gameID": gameID,
-                            "playerID": playerID
-                        }
-                    }
-
+                try:
                     for player in game.players:
                         await player.ws.send(json.dumps(ret_msg))
+                finally:
+                    await game.prep()
 
-        elif msg["type"] == "Not Ready":
-            gameID = msg["data"]["gameID"]
-            playerID = msg["data"]["playerID"]
-            if gameID in gameListings:
-                game = gameListings[gameID]
-                for player in game.players:
-                    if player.playerID == playerID:
-                        player.isReady = False
-
-                for player in game.players:
-                    ret_msg = {
-                        "type": "Not Ready",
-                        "data": {
-                            "gameID": gameID,
-                            "playerID": playerID
-                        }
+            else:
+                ret_msg = {
+                    "type": "Ready",
+                    "data": {
+                        "gameID": user.currGame.gameID,
+                        "playerID": user.currPlayer.playerID
                     }
+                }
+
+                for player in game.players:
                     await player.ws.send(json.dumps(ret_msg))
 
-        elif msg["type"] == "Choose Deck":
-            gameID = msg["data"]["gameID"]
-            playerID = msg["data"]["playerID"]
-            if gameID in gameListings:
-                game = gameListings[gameID]
-                for player in game.players:
-                    if player.playerID == playerID:
-                        player.cards = msg["data"]["deck"]
+        elif msg["type"] == "Not Ready" and user.inGame:
+            user.currPlayer.isReady = False
+
+            ret_msg = {
+                    "type": "Not Ready",
+                    "data": {
+                        "gameID": user.currGame.gameID,
+                        "playerID": user.currPlayer.playerID
+                    }
+                }
+
+            for player in game.players:
+                await player.ws.send(json.dumps(ret_msg))
+
+        elif msg["type"] == "Choose Deck" and user.inGame:
+            user.currPlayer.cards = msg["data"]["deck"]
             
             msg = {
                 "type": "Choose Deck"
@@ -204,21 +197,13 @@ async def msg_handler(msg, ws):
 
             await ws.send(json.dumps(msg))
 
-        elif msg["type"] == "Play Land":
-            gameID = msg["data"]["gameID"]
-            playerID = msg["data"]["playerID"]
+        elif msg["type"] == "Play Land" and user.inGame:
             instanceID = msg["data"]["instanceID"]
-            if gameID in gameListings:
-                game = gameListings[gameID]
-                await evaluate(game, playLand, game.allCards[instanceID])
+            await evaluate(user.currGame, playLand, user.currGame.allCards[instanceID])
 
-        elif msg["type"] == "Activate Ability":
-            gameID = msg["data"]["gameID"]
-            playerID = msg["data"]["playerID"]
+        elif msg["type"] == "Activate Ability" and user.inGame:
             abilityID = msg["data"]["abilityID"]
-            if gameID in gameListings:
-                game = gameListings[gameID]
-                await evaluate(game, activateAbility, game.allAbilites[abilityID])
+            await evaluate(user.currGame, declareActivation, abilityID)
 
 if __name__ == "__main__":
     startServer()

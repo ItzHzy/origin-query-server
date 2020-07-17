@@ -242,10 +242,6 @@ def declareCast(game, instanceID, player):
 
     result = Effect(card)
 
-    game.referenceEffect = result
-    game.referencePlayer = player
-    game.referenceCard = card
-
     # Used for modal spells
     if card.isModal:
         effectIndexesAdded.append(0)
@@ -302,10 +298,13 @@ def declareCast(game, instanceID, player):
     # Evaluate cast
     evaluate(game, cast, card)
 
-async def declareActivation(game, abilityID, player):
+async def declareActivation(game, abilityID):
     ability = game.GAT[abilityID]
-    result = Effect(ability.source)
+    result = Effect()
+    result.sourceAbility = ability
+    result.sourceCard = ability.source
     result.cost = addCosts(game, ability, ability.cost[0], ability.cost[1])
+    result.rulesText = ability.rulesText
     await evaluate(game, activateAbility, result)
 
 def decideSplice(card):
