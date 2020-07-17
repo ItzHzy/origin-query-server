@@ -3,7 +3,6 @@ from gameElements import *
 from movingZones import * 
 from combatFunctions import * 
 from gameActions import * 
-from copy import deepcopy
 
 def doPhaseActions(game):
     currPhase = game.GD("Current Phase")
@@ -194,37 +193,43 @@ def addCosts(game, obj, mainCost, additionalCosts):
     totalCost = Cost()
     totalMana = {}  
 
-    if mainCost[0]:
-        for manaType in mainCost[1]:
-            amount = mainCost[1][manaType]
-            totalMana = addCost(manaType, amount, totalMana)
+    if isinstance(mainCost, dict):
+        for manaType in mainCost:
+            amount = mainCost[manaType]
+
+            if manaType in totalMana:
+                totalMana[manaType] += amount
+            else:
+                totalMana[manaType] = amount
+
+            # If the amount of a manatype is 0 or negative, it is unneeded and can be removed from the list
+            if totalMana[manaType] <= 0:
+                del totalMana[manaType]
     else:
-        for cost in mainCost[1]:
+        for cost in mainCost:
             totalCost.additional.append(cost)
     
     if additionalCosts != None:
         for addedCost in additionalCosts:
-            if mainCost[0]:
-                for manaType in addedCost[1]:
-                    amount = addedCost[1][manaType]
-                    totalMana = addCost(manaType, amount, totalMana)
+            if isinstance(addedCost, dict): # Do if the additional cost is a mana payment
+                for manaType in addedCost:
+                    amount = mainCost[manaType]
+
+                    if manaType in totalMana:
+                        totalMana[manaType] += amount
+                    else:
+                        totalMana[manaType] = amount
+
+                    # If the amount of a manatype is 0 or negative, it is unneeded and can be removed from the list
+                    if totalMana[manaType] <= 0:
+                        del totalMana[manaType]
             else:
-                for cost in addedCost[1]:
+                for cost in addedCost:
                     totalCost.additional.append(cost)
 
-    return totalCost
+    totalCost.manaCost = totalCost
 
-def addCost(manaType, amount, currentCost):
-    """Called by addCosts to add mana costs together
-    """
-    if manaType in currentCost:
-        currentCost[manaType] += amount
-        if currentCost[manaType] <= 0:
-            del currentCost[manaType]
-    else:
-        currentCost[manaType] = amount
-    
-    return currentCost
+    return totalCost
 
 def doSomething(game, player):
     # waits for the player to make a choice
@@ -232,7 +237,7 @@ def doSomething(game, player):
 
 def declareCast(game, instanceID, player):
     card = game.getCard(instanceID)
-    allEffects = deepcopy(card.effects) # A copy of all effects on the card
+    allEffects = card.effects.copy() # A copy of all effects on the card
 
     chosenEffects = [] # Chosen effects
     effectIndexesAdded = [] # indexes of the effects added from allEffects
@@ -249,7 +254,7 @@ def declareCast(game, instanceID, player):
         effectList = []
         for effect in allEffects[0]:
             if card.repeatableChoice:
-                for i in range(num): # pylint: disable=unused-variable
+                for _ in range(num):
                     effectList.append(effect)
             else:
                 effectList.append(effect)
