@@ -290,11 +290,6 @@ class Game():
 
         self.replacedBy = []
 
-        # Used temporarily as pseudo globals by various functions
-        self.referencePlayer = None 
-        self.referenceCard = None
-        self.referenceEffect = None
-
         self.won = False
         self.winners = []
 
@@ -376,7 +371,7 @@ class Game():
                     player.deck.append(card)
                     self.allCards[card.instanceID] = card
             shuffle(player.deck)
-            await drawCards(self, player, 7)
+            await drawCards(self, player, 15)
 
     async def notifyAll(self, msg):
         # Using a try/finally forces the code to be synchronous

@@ -224,8 +224,7 @@ def addCosts(game, obj, mainCost, additionalCosts):
                     if totalMana[manaType] <= 0:
                         del totalMana[manaType]
             else:
-                for cost in addedCost:
-                    totalCost.additional.append(cost)
+                totalCost.additional.append(addedCost)
 
     totalCost.manaCost = totalCost
 
@@ -306,6 +305,7 @@ def declareCast(game, instanceID, player):
 async def declareActivation(game, abilityID):
     ability = game.GAT[abilityID]
     result = Effect()
+    result.effect = ability.effect.copy()
     result.sourceAbility = ability
     result.sourceCard = ability.source
     result.cost = addCosts(game, ability, ability.cost[0], ability.cost[1])

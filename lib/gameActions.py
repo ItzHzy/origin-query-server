@@ -11,11 +11,12 @@ def cast(game, card):
     pass
 
 async def activateAbility(game, effect):
-    if effect.cost.canBePaid(game, effect.sourceCard.controller) and effect.cost.pay(game, effect.sourceCard.controller):
-        if effect.sourceAbility.isManaAbility:
-            await game.resolve(effect)
-        else:
-            await game.push(effect)
+    if effect.cost.canBePaid(game, effect.sourceCard.controller):
+        if await effect.cost.pay(game, effect.sourceCard.controller):
+            if effect.sourceAbility.isManaAbility:
+                await game.resolve(effect)
+            else:
+                await game.push(effect)
 
 def loseLife(game, source, player, amountToLose):
     """Set the life total for selected player to (current life - the amount to lose)
@@ -160,7 +161,7 @@ def untapAll(game, activePlayer):
     for card in activePlayer.getField():
         evaluate(game, untap, card)
 
-def tap(game, card):
+async def tap(game, card):
     """Tap card
 
     Args:
@@ -184,7 +185,7 @@ def tap(game, card):
         }
     }
 
-    game.notifyAll(msg)
+    await game.notifyAll(msg)
 
 def tapCards(game, cardsToTap):
     """Tap multiple cards
@@ -345,7 +346,7 @@ def removeMana(game, player, color, amount):
     """
     player.manaPool[color] -= amount
 
-def addMana(game, player, color, amount):
+async def addMana(game, player, color, amount):
     """Add mana to player's mana pool.
 
     Args:
@@ -359,6 +360,10 @@ def addMana(game, player, color, amount):
     """
     player.manaPool[color] += amount
 
+    total = 0
+    for color in player.manaPool:
+        total += player.manaPool[color]
+
     msg = {
         "type": "State Update",
         "data": {
@@ -367,13 +372,13 @@ def addMana(game, player, color, amount):
                 "playerID": player.playerID,
                 "type": "Mana Update",
                 "data": {
-                    "num": amount
+                    "num": total
                 }
             }]
         }
     }
 
-    game.notifyAll(msg)
+    await game.notifyAll(msg)
 
 def attach(game, source, target):
     """Attach card to another card.
