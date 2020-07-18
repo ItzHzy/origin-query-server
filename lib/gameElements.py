@@ -611,7 +611,6 @@ class ActivatedAbility(Ability):
     def getEffect(self):
         return self.effect
 
-
 class TriggeredAbility(Ability):
     # argDict {1: None, 
     #          3: self }
