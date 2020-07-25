@@ -1,14 +1,18 @@
-from enumeratedTypes import * 
+from enumeratedTypes import *
 from gameActions import evaluate, drawCards
+from basicFunctions import doPhaseActions, givePriority, goToNextPhase, doAction
 from uuid import uuid1
 from database import cards_db
 from os.path import normpath
 from importlib import import_module
 from random import shuffle
 import json
+import asyncio
+from preload import sio  # pylint: ignore=import-error
+
 
 class Player():
-    def __init__(self, game, name, ws):
+    def __init__(self, game, name, sid):
         self.game = game
         self.name = name
         self.playerID = "P-" + str(uuid1())
@@ -25,17 +29,19 @@ class Player():
         self.abilities = set()
         self.counters = {}
         self.property = {}
-        self.manaPool = {Color.WHITE: 0, Color.BLUE: 0, Color.BLACK: 0, Color.RED: 0, Color.GREEN: 0, Color.COLORLESS: 0}
+        self.manaPool = {Color.WHITE: 0, Color.BLUE: 0, Color.BLACK: 0,
+                         Color.RED: 0, Color.GREEN: 0, Color.COLORLESS: 0}
 
         self.passed = False
         self.awaitingTriggers = []
 
-        self.hasSplice= False
+        self.hasSplice = False
 
         self.isHost = False
-        self.ws = ws
+        self.sid = sid
         self.cards = None
         self.isReady = False
+        self.answer = None
 
         self.game.AddZone(self, Zone.DECK, self.getDeck())
         self.game.AddZone(self, Zone.FIELD, self.getField())
@@ -70,6 +76,7 @@ class Player():
     def setLife(self, newTotal):
         self.lifeTotal = newTotal
 
+
 class Card():
     def __init__(self, game, player, oracle):
         self.name = None
@@ -83,12 +90,12 @@ class Card():
         self.colors = set()
 
         self.cmc = None
-        self.manaCost = None # Mana symbols on the card
-        
-        self.mainCosts = [] # [types  ex. "Flashback", cost, indexOfEffect usually 0]
-        self.additionalCosts = [] # [types, cost, indexOfEffect]
+        self.manaCost = None  # Mana symbols on the card
 
-        self.effect = None # Cleared on reset
+        self.mainCosts = []  # [types  ex. "Flashback", cost, indexOfEffect usually 0]
+        self.additionalCosts = []  # [types, cost, indexOfEffect]
+
+        self.effect = None  # Cleared on reset
 
         self.power = None
         self.toughness = None
@@ -102,13 +109,13 @@ class Card():
         self.effects = []
         self.abilities = []
         self.characteristics = {
-            Layer.BASE : None,
-            Layer.ONE  : [],
-            Layer.TWO  : [],
+            Layer.BASE: None,
+            Layer.ONE: [],
+            Layer.TWO: [],
             Layer.THREE: [],
-            Layer.FOUR : [],
-            Layer.FIVE : [],
-            Layer.SIX  : [],
+            Layer.FOUR: [],
+            Layer.FIVE: [],
+            Layer.SIX: [],
             Layer.SIX_0: [],
             Layer.SIX_A: [],
             Layer.SIX_B: [],
@@ -116,8 +123,9 @@ class Card():
             Layer.SIX_E: []
         }
         self.counters = {}
-        self.property = {} # Cleared on reset
-        self.specialTypes = set() # Does not clear on reset. Used for things like declareVariable
+        self.property = {}  # Cleared on reset
+        # Does not clear on reset. Used for things like declareVariable
+        self.specialTypes = set()
 
         self.tapped = False
         self.flipped = False
@@ -129,12 +137,12 @@ class Card():
         self.attachedTo = None
 
         self.isModal = False
-        self.maxNumOfChoices = None # "Choose #"
-        self.repeatableChoice = False # "You may choose the same mode more than once"
+        self.maxNumOfChoices = None  # "Choose #"
+        self.repeatableChoice = False  # "You may choose the same mode more than once"
 
         self.isCopy = False
         self.isToken = False
-        
+
     def getCardTypes(self):
         return self.cardTypes
 
@@ -143,7 +151,7 @@ class Card():
             if kind not in self.cardTypes:
                 return False
         return True
-    
+
     def hasType(self, kind):
         if kind not in self.cardTypes:
             return False
@@ -219,7 +227,7 @@ class Card():
             if Counter.M1M1 in self.counters:
                 self.power -= self.counters[Counter.M1M1]
                 self.toughness -= self.counters[Counter.M1M1]
-        
+
         for i in self.characteristics[Layer.SIX_E]:
             t = self.power
             self.power = self.toughness
@@ -255,6 +263,7 @@ class Card():
         self.damageMarked = 0
         self.effect = None
 
+
 class MFCard():
     def __init__(self, face1, face2, splitType):
         self.faces = (face1, face2)
@@ -263,6 +272,7 @@ class MFCard():
 
     def reset(self):
         pass
+
 
 class Game():
     def __init__(self, uuid, title, numPlayers, creator, status):
@@ -273,30 +283,28 @@ class Game():
         self.status = status
 
         self.players = []  # List of all players in a game
-        self.playersDict = {} # Used for turn order
-        self.blindingEternities = []  # Used for tokens or cards that don't exist in a deck normally ex. the back half of a DFC
-        self.LE = {"Rules": {}, "Allowances": {}, "Triggers": {}, "Replacements": {}}  # Lex Magico
-        self.stack = []
+        # Used for tokens or cards that don't exist in a deck normally ex. the back half of a DFC
+        self.blindingEternities = []
+        self.LE = {"Rules": {}, "Allowances": {},
+                   "Triggers": {}, "Replacements": {}}  # Lex Magico
 
-        self.zones = {}
+        self.zones = {Zone.STACK: []}
         self.allCards = {}
-        self.GAT = {} # Global Ability Table
-        self.GMT = {} # Global Modifier Table
+        self.GAT = {}  # Global Ability Table
+        self.GMT = {}  # Global Modifier Table
         self.costModifiers = []
         self.trackers = []
 
         self.activePlayer = None
         self.currPhase = None
+        self.priority = None
+        self.waitingOn = None
+        self.chosenAnswer = None
 
         self.replacedBy = []
 
         self.won = False
         self.winners = []
-
-        # for index, player in enumerate(self.players):
-        #     if player != self.players[-1]:
-        #         self.playersDict[player] = self.players[index + 1]
-        # self.playersDict[self.players[-1]] = self.players[0]
 
     def getCard(self, instanceID):
         pass
@@ -319,11 +327,11 @@ class Game():
                 return card
         return None
 
-    async def resolve(self, obj):
+    def resolve(self, obj):
         for effect in obj.effect:
-            await evaluate(self, *effect)
+            evaluate(self, *effect)
 
-    async def push(self, obj):
+    def push(self, obj):
         pass
 
     def pop(self):
@@ -332,21 +340,26 @@ class Game():
         pass
 
     def getNextPlayer(self, player):
-        return self.playersDict[player]
+        return
 
-    def getRelativePlayerList(self, player):
-        # This took me an hour to come up with 🤫
-        
+    def getRelativePlayerList(self, activePlayer):
+
         lst = []
-        lastPlayerChecked = player
-        i = True
-        while lastPlayerChecked != player and i:
-            if i:
+        started = False
+
+        for player in self.players:
+            if started:
                 lst.append(player)
-                i = False
-            lst.append(self.playersDict[player])
-            lastPlayerChecked = self.playersDict[player]
-        
+            elif player == activePlayer:
+                lst.append(player)
+                started = True
+
+        for player in self.players:
+            if player != activePlayer:
+                lst.append(player)
+            else:
+                break
+
         return lst
 
     def addKeywordAbility(self, keyword):
@@ -355,12 +368,11 @@ class Game():
 
     def addPlayerToGame(self, player):
         self.players.append(player)
-        
+
     def removePlayerFromGame(self, player):
         self.players.remove(player)
 
-    async def prep(self):
-
+    async def run(self):
         for player in self.players:
             for key in player.cards:
                 result = cards_db.find_one(oracle_id=key)
@@ -371,67 +383,83 @@ class Game():
                     player.deck.append(card)
                     self.allCards[card.instanceID] = card
             shuffle(player.deck)
-            await drawCards(self, player, 15)
+            drawCards(self, player, 7)
+        await asyncio.sleep(0)
 
-    async def notifyAll(self, msg):
-        # Using a try/finally forces the code to be synchronous
-        try:
-            msg = json.dumps(msg)
-            for player in self.players:
-                await player.ws.send(msg)
-        finally:
-            pass
+        stack = self.zones[Zone.STACK]
+        self.activePlayer = self.players[0]
+        self.currPhase = Turn.UNTAP
 
-    async def notify(self, msg, player):
-        await player.ws.send(json.dumps(msg))
+        while not self.won:
+            doPhaseActions(self)
+            passedInSuccession = False
+            while not passedInSuccession:
+                passedInSuccession = True
+                for player in self.getRelativePlayerList(self.activePlayer):
+                    # checkSBA(self)
+                    givePriority(self, player)
+
+                    msg = {"question": "Do action?"}
+                    self.notify("Binary Question", msg, player)
+
+                    while player.answer == None:
+                        await asyncio.sleep(0)
+
+                    if player.answer:
+                        player.answer = None
+                        passedInSuccession = False
+                        while not player.passed:
+                            await doAction(self, player)
+            evaluate(self, goToNextPhase)
+
+    def notifyAll(self, event, msg):
+        asyncio.create_task(sio.emit(event, msg, room=self.gameID))
+
+    def notify(self, event, msg, player):
+        asyncio.create_task(sio.emit(event, msg, player.sid))
+
 
 class TargetRestriction():
     def __init__(self, game, rulesText):
         self.game = game
         self.rulesText = rulesText
         self.allowedZones = []  # Zones to check in
-        self.controller = []  
-        self.cardTypes = []  
+        self.controller = []
+        self.cardTypes = []
 
-        self.tapped = None 
-        self.untapped = None 
+        self.tapped = None
+        self.untapped = None
 
-        self.cmcGTE = None 
-        self.cmcLTE = None  
+        self.cmcGTE = None
+        self.cmcLTE = None
         self.cmc = None
 
-        self.powerGTE = None  
-        self.powerLTE = None 
-        self.power = None  
+        self.powerGTE = None
+        self.powerLTE = None
+        self.power = None
 
-        self.toughnessGTE = None 
-        self.toughnessLTE = None  
-        self.toughness = None 
+        self.toughnessGTE = None
+        self.toughnessLTE = None
+        self.toughness = None
 
-        self.playerID = []   
-        self.instanceID = []  
-        self.memID = []  
-        self.name = None  
-        self.customFunction = None  
+        self.playerID = []
+        self.instanceID = []
+        self.memID = []
+        self.name = None
+        self.customFunction = None
 
         self.x = 0
         self.doesTarget = False
-        self.numRequired = 0 
+        self.numRequired = 0
 
     def hasLegalTargets(self, game):
         # Returns True if their are legal targets, False otherwise
         pass
 
     def getLegalTargets(self, game):
-        # Return all legal targets 
+        # Return all legal targets
         pass
 
-    def __deepcopy__(self, arg):
-        # Overides deepcopy in order to imitate eager evaluation and return chosen legal targets
-        from gameActions import choose
-        x = choose(self.getLegalTargets(self.game), self.game.referencePlayer, InquiryType.TARGET, self.numRequired)
-        self.game.referenceEffect.targets += [[self, x]]
-        return x
 
 class gameListener():  # Used for Triggered Abilties
     def __init__(self, source, listenerFunction, effect):
@@ -453,8 +481,9 @@ class gameListener():  # Used for Triggered Abilties
         return self.status
 
     def resolveEffect(self):
-        #Evaluate every action in the effect with evaluate()
+        # Evaluate every action in the effect with evaluate()
         pass
+
 
 class GameRule():  # Will return if a action is illegal
     def __init__(self, ruleFunction, source=None, nameOfGameRule=None):
@@ -469,12 +498,13 @@ class GameRule():  # Will return if a action is illegal
             return GameRuleViolation(self.source, targetFunc, targetArgs)
         return GameRuleAns.UNKNOWN
 
+
 class GameRuleViolation():
     def __init__(self, sourceOfViolation, targetFunc, targetArgs):
         self.sourceOfViolation = sourceOfViolation
         self.targetFunc = targetFunc
         self.targetArgs = targetArgs
-    
+
     def getSource(self):
         return self.sourceOfViolation
 
@@ -483,6 +513,7 @@ class GameRuleViolation():
 
     def getArgs(self):
         return self.targetArgs
+
 
 class GameAllowance():
     def __init__(self, ruleFunction, source):
@@ -497,6 +528,7 @@ class GameAllowance():
         else:
             return gameRuleViolation
 
+
 class ModifierApplier():
     # Chang name to modifier applier
     def __init__(self, modifiersToApply, targetRestriction):
@@ -506,6 +538,7 @@ class ModifierApplier():
     def apply(self):
         pass
 
+
 class Effect():
     """Structure of effect list:
     [
@@ -514,12 +547,14 @@ class Effect():
         ...
     ]
     """
+
     def __init__(self):
         self.sourceAbility = None
         self.sourceCard = None
         self.effect = None
         self.rulesText = None
-        self.targets = [] # [[TargetRestriction1, chosenTargets1],[TargetRestriction2, chosenTargets2]]
+        # [[TargetRestriction1, chosenTargets1],[TargetRestriction2, chosenTargets2]]
+        self.targets = []
         self.cost = None
 
     def addEffect(self, effect):
@@ -532,24 +567,26 @@ class Effect():
         """
         self.effect += effect
 
+
 class Cost():
     # Only instantiated by addCosts()
     def __init__(self):
-        self.manaCost = {} 
+        self.manaCost = {}
         self.additional = []
 
     def canBePaid(self, game, player):
         # Returns True if the cost can be paid by player, False otherwise
-        return True # Temporary
+        return True  # Temporary
 
-    async def pay(self, game, player):
+    def pay(self, game, player):
         # Return True if cost is paid, False otherwise
         if self.manaCost != {}:
             pass
         if self.additional != []:
             for cost in self.additional:
-                await evaluate(game, *cost)
-        return True # Temporary
+                evaluate(game, *cost)
+        return True  # Temporary
+
 
 class CostModifier():
     def __init__(self, cost, costType):
@@ -559,6 +596,7 @@ class CostModifier():
 
     def apply(self, obj):
         pass
+
 
 class Tracker():
     def __init__(self, actionToWatch, argsToWatch, kind="Int", increment=1, resetAtEOT=False, func=None):
@@ -585,7 +623,8 @@ class Tracker():
             if self.kind == "Int":
                 self.x += self.increment
             else:
-                self.x = True  
+                self.x = True
+
 
 class Ability():
     def __init__(self, game, source, allowedZones, rulesText, isManaAbility, keywordName):
@@ -595,15 +634,17 @@ class Ability():
         self.abilityID = 'A-' + str(uuid1())
         self.isManaAbility = isManaAbility
         self.allowedZones = allowedZones
-        self.specialTypes = set() # Ex. Variable
+        self.specialTypes = set()  # Ex. Variable
         game.GAT[self.abilityID] = self
+
 
 class ActivatedAbility(Ability):
     def __init__(self, game, source, cost, effect, allowedZones, rulesText, isManaAbility=False, keywordName=None):
-        super(ActivatedAbility, self).__init__(game, source, allowedZones, rulesText, isManaAbility, keywordName)
-        self.cost = cost # cost[0] is a mana cost, cost[1] is for other costs
+        super(ActivatedAbility, self).__init__(game, source,
+                                               allowedZones, rulesText, isManaAbility, keywordName)
+        self.cost = cost  # cost[0] is a mana cost, cost[1] is for other costs
         self.effect = effect
-        self.isActive = False 
+        self.isActive = False
 
     def getCost(self):
         return self.cost
@@ -611,12 +652,14 @@ class ActivatedAbility(Ability):
     def getEffect(self):
         return self.effect
 
+
 class TriggeredAbility(Ability):
-    # argDict {1: None, 
+    # argDict {1: None,
     #          3: self }
-    #   check the arg at index in the evaluated function and see if its equal to the value 
+    #   check the arg at index in the evaluated function and see if its equal to the value
     def __init__(self, game, source, triggerFunction, argDict, effect, allowedZones, rulesText, isManaAbility=False, keywordName=None):
-        super(TriggeredAbility, self).__init__(game, source, allowedZones, rulesText, isManaAbility, keywordName)
+        super(TriggeredAbility, self).__init__(game, source,
+                                               allowedZones, rulesText, isManaAbility, keywordName)
         self.triggerFunction = triggerFunction
         self.argDict = argDict
         self.effect = effect

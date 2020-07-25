@@ -1,18 +1,22 @@
 from enumeratedTypes import *
 import json
 import asyncio
+import functools
+from server1 import sio
 
-# TODO: Add indexing options for deck 
+# TODO: Add indexing options for deck
+
+
 def commandToField(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.COMMAND_ZONE]
     newZone = game.zones[control][Zone.FIELD]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def commandToHand(game, card):
     control = card.controller
@@ -20,33 +24,33 @@ def commandToHand(game, card):
     oldZone = game.zones[control][Zone.COMMAND_ZONE]
     newZone = game.zones[own][Zone.HAND]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def commandToStack(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.COMMAND_ZONE]
     newZone = game.zones[control][Zone.STACK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(0, card)
     game.applyModifiers(card)
+
 
 def graveToField(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[control][Zone.FIELD]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def graveToHand(game, card):
     control = card.controller
@@ -54,22 +58,22 @@ def graveToHand(game, card):
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[own][Zone.HAND]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
-    
+
+
 def graveToStack(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[control][Zone.STACK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(0, card)
     game.applyModifiers(card)
+
 
 def graveToDeck(game, card, indexToInsert):
     control = card.controller
@@ -77,35 +81,37 @@ def graveToDeck(game, card, indexToInsert):
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[own][Zone.DECK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(indexToInsert, card)
     game.applyModifiers(card)
+
 
 def graveToExile(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.GRAVE]
     newZone = game.zones[control][Zone.EXILE]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def addToField(game, card):
     newZone = game.zones[card.controller][Zone.FIELD]
     newZone.add(card)
     game.applyModifiers(card)
 
+
 def fieldToField(game, card, player):
     control = card.controller
     oldZone = card.currentZone
     newZone = game.zones[control][Zone.HAND]
-    
+
     oldZone.remove(card)
     newZone.add(card)
+
 
 def fieldToHand(game, card):
     control = card.controller
@@ -115,10 +121,11 @@ def fieldToHand(game, card):
 
     oldZone.remove(card)
     if not card.isToken:
-        
+
         card.reset()
         newZone.add(card)
         game.applyModifiers(card)
+
 
 def fieldToGrave(game, card):
     control = card.controller
@@ -128,10 +135,11 @@ def fieldToGrave(game, card):
 
     oldZone.remove(card)
     if not card.isToken:
-        
+
         card.reset()
         newZone.add(card)
         game.applyModifiers(card)
+
 
 def fieldToDeck(game, card, indexToInsert):
     control = card.controller
@@ -141,10 +149,11 @@ def fieldToDeck(game, card, indexToInsert):
 
     oldZone.remove(card)
     if not card.isToken:
-        
+
         card.reset()
         newZone.insert(indexToInsert, card)
         game.applyModifiers(card)
+
 
 def fieldToExile(game, card):
     control = card.controller
@@ -153,10 +162,11 @@ def fieldToExile(game, card):
 
     oldZone.remove(card)
     if not card.isToken:
-        
+
         card.reset()
         newZone.add(card)
         game.applyModifiers(card)
+
 
 def fieldToCommand(game, card):
     control = card.controller
@@ -166,12 +176,13 @@ def fieldToCommand(game, card):
 
     oldZone.remove(card)
     if not card.isToken:
-        
+
         card.reset()
         newZone.add(card)
         game.applyModifiers(card)
 
-async def handToField(game, card):
+
+def handToField(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[control][Zone.FIELD]
@@ -181,51 +192,43 @@ async def handToField(game, card):
     newZone.add(card)
     game.applyModifiers(card)
 
-
-    abilities = [[ability.abilityID, ability.rulesText] for ability in card.abilities if (Zone.FIELD in ability.allowedZones)]
+    abilities = [[ability.abilityID, ability.rulesText]
+                 for ability in card.abilities if (Zone.FIELD in ability.allowedZones)]
     types = [str(typ) for typ in card.cardTypes]
-    msg = {
-        "type": "State Update",
-        "data": {
-            "cards": [{
-                "instanceID": card.instanceID,
-                "type": "New Object",
-                "data": {
-                    "name": card.name,
-                    "oracle": card.oracle,
-                    "memID": card.memID,
-                    "power": card.power,
-                    "toughness": card.toughness,
-                    "controller": card.controller.playerID,
-                    "abilities": abilities,
-                    "types": types,
-                    "zone": "field"
-                }
-            }],
-            "players": [{
-                "playerID": control.playerID,
-                "type": "Zone Count Update",
-                "data": {
-                    "type" : "Hand",
-                    "num" : len(oldZone)
-                }
-            }]
-        }
+
+    msg1 = {
+        "instanceID": card.instanceID,
+        "name": card.name,
+        "oracle": card.oracle,
+        "memID": card.memID,
+        "power": card.power,
+        "toughness": card.toughness,
+        "controller": card.controller.playerID,
+        "abilities": abilities,
+        "types": types,
+        "zone": "field"
     }
 
-    for player in game.players:
-        await player.ws.send(json.dumps(msg))
+    msg2 = {
+        "playerID": control.playerID,
+        "type": "Hand",
+        "num": len(oldZone)
+    }
+
+    game.notifyAll("New Object", msg1)
+    game.notifyAll("Zone Count Update", msg2)
+
 
 def handToStack(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[control][Zone.STACK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(0, card)
     game.applyModifiers(card)
+
 
 def handToGrave(game, card):
     control = card.controller
@@ -233,11 +236,11 @@ def handToGrave(game, card):
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[own][Zone.GRAVE]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def handToDeck(game, card, indexToInsert):
     control = card.controller
@@ -245,35 +248,35 @@ def handToDeck(game, card, indexToInsert):
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[own][Zone.DECK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(indexToInsert, card)
     game.applyModifiers(card)
+
 
 def handToExile(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.HAND]
     newZone = game.zones[control][Zone.EXILE]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def deckToField(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[control][Zone.FIELD]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
 
-async def deckToHand(game, card):
+
+def deckToHand(game, card):
     control = card.controller
     own = card.owner
     oldZone = game.zones[control][Zone.DECK]
@@ -284,69 +287,50 @@ async def deckToHand(game, card):
     newZone.add(card)
     game.applyModifiers(card)
 
-    public_msg = {
-        "type": "State Update",
-        "data": {
-            "cards" : [],
-            "players" : [{
-                "playerID": control.playerID,
-                "type": "Zone Count Update",
-                "data": {
-                    "type" : "Deck",
-                    "num" : len(oldZone)
-                }
-            },
-            {
-                "playerID": control.playerID,
-                "type": "Zone Count Update",
-                "data": {
-                    "type" : "Hand",
-                    "num" : len(newZone)
-                }
-            }]
-        }
-    }
-
-    
-    abilities = [[ability.abilityID, ability.rulesText] for ability in card.abilities if (Zone.HAND in ability.allowedZones)]
+    abilities = [[ability.abilityID, ability.rulesText]
+                 for ability in card.abilities if (Zone.HAND in ability.allowedZones)]
     types = [str(typ) for typ in card.cardTypes]
-    private_msg = {
-        "type": "State Update",
-        "data": {
-            "cards": [{
-                "instanceID": card.instanceID,
-                "type": "New Object",
-                "data": {
-                    "name": card.name,
-                    "oracle": card.oracle,
-                    "memID": card.memID,
-                    "power": card.power,
-                    "toughness": card.toughness,
-                    "controller": card.controller.playerID,
-                    "abilities": abilities,
-                    "types": types,
-                    "zone": "hand"
-                }
-            }],
-            "players": []
-        }
+
+    msg1 = {
+        "playerID": control.playerID,
+        "type": "Hand",
+        "num": len(newZone)
     }
 
-    for player in game.players:
-        await player.ws.send(json.dumps(public_msg))
+    msg2 = {
+        "playerID": control.playerID,
+        "type": "Deck",
+        "num": len(oldZone)
+    }
 
-    await own.ws.send(json.dumps(private_msg))
+    msg3 = {
+        "instanceID": card.instanceID,
+        "name": card.name,
+        "oracle": card.oracle,
+        "memID": card.memID,
+        "power": card.power,
+        "toughness": card.toughness,
+        "controller": card.controller.playerID,
+        "abilities": abilities,
+        "types": types,
+        "zone": "hand"
+    }
+
+    game.notifyAll("Zone Count Update", msg1)
+    game.notifyAll("Zone Count Update", msg2)
+    game.notify("New Object", msg3, control)
+
 
 def deckToStack(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[control][Zone.STACK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(0, card)
     game.applyModifiers(card)
+
 
 def deckToGrave(game, card):
     control = card.controller
@@ -354,28 +338,29 @@ def deckToGrave(game, card):
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[own][Zone.GRAVE]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def deckToExile(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.DECK]
     newZone = game.zones[control][Zone.EXILE]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
 
+
 def addToStack(game, card):
     newZone = game.zones[card.controller][Zone.STACK]
     newZone.insert(0, card)
     game.applyModifiers(card)
-        
+
+
 def stackToField(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.STACK]
@@ -385,6 +370,7 @@ def stackToField(game, card):
     if not card.isCopy:
         newZone.add(card)
         game.applyModifiers(card)
+
 
 def stackToHand(game, card):
     control = card.controller
@@ -397,6 +383,7 @@ def stackToHand(game, card):
         newZone.add(card)
         game.applyModifiers(card)
 
+
 def stackToGrave(game, card):
     control = card.controller
     own = card.owner
@@ -407,6 +394,7 @@ def stackToGrave(game, card):
     if not card.isCopy:
         newZone.add(card)
         game.applyModifiers(card)
+
 
 def stackToDeck(game, card, indexToInsert):
     control = card.controller
@@ -419,6 +407,7 @@ def stackToDeck(game, card, indexToInsert):
         newZone.insert(indexToInsert, card)
         game.applyModifiers(card)
 
+
 def stackToExile(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.STACK]
@@ -428,6 +417,7 @@ def stackToExile(game, card):
     if not card.isCopy:
         newZone.add(card)
         game.applyModifiers(card)
+
 
 def stackToCommand(game, card):
     control = card.controller
@@ -440,16 +430,17 @@ def stackToCommand(game, card):
         newZone.add(card)
         game.applyModifiers(card)
 
+
 def exileToField(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.EXILE]
     newZone = game.zones[control][Zone.FIELD]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def exileToHand(game, card):
     control = card.controller
@@ -457,18 +448,17 @@ def exileToHand(game, card):
     oldZone = game.zones[control][Zone.EXILE]
     newZone = game.zones[own][Zone.HAND]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.add(card)
     game.applyModifiers(card)
+
 
 def exileToStack(game, card):
     control = card.controller
     oldZone = game.zones[control][Zone.EXILE]
     newZone = game.zones[control][Zone.STACK]
 
-    
     card.reset()
     oldZone.remove(card)
     newZone.insert(0, card)

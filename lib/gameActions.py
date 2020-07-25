@@ -1,22 +1,28 @@
+from time import sleep
 from enumeratedTypes import *
 from movingZones import deckToHand, deckToGrave, fieldToGrave, handToField
+
 
 def play():
     pass
 
-async  def playLand(game, card):
-    await evaluate(game, handToField, card)
+
+def playLand(game, card):
+    evaluate(game, handToField, card)
+
 
 def cast(game, card):
     pass
 
-async def activateAbility(game, effect):
+
+def activateAbility(game, effect):
     if effect.cost.canBePaid(game, effect.sourceCard.controller):
-        if await effect.cost.pay(game, effect.sourceCard.controller):
+        if effect.cost.pay(game, effect.sourceCard.controller):
             if effect.sourceAbility.isManaAbility:
-                await game.resolve(effect)
+                game.resolve(effect)
             else:
-                await game.push(effect)
+                game.push(effect)
+
 
 def loseLife(game, source, player, amountToLose):
     """Set the life total for selected player to (current life - the amount to lose)
@@ -34,6 +40,7 @@ def loseLife(game, source, player, amountToLose):
         return
     player.setLife(player.getLife() - amountToLose)
 
+
 def gainLife(game, source, player, amountToGain):
     """Set the life total for selected player to (current life + the amount to gain)
 
@@ -49,6 +56,7 @@ def gainLife(game, source, player, amountToGain):
     if amountToGain == 0:
         return
     player.setLife(player.getLife() + amountToGain)
+
 
 def setLife(game, source, player, newTotal):
     """Sets the life total of the selected player to the specified amount
@@ -69,7 +77,8 @@ def setLife(game, source, player, newTotal):
     else:
         evaluate(game, gainLife, player, (newTotal - player.getLife()))
 
-async def drawCard(game, player):
+
+def drawCard(game, player):
     """Selected player draws a card
 
     Args:
@@ -80,9 +89,10 @@ async def drawCard(game, player):
         None
     """
     card = player.getTopOfDeck()
-    await evaluate(game, deckToHand, card)
+    evaluate(game, deckToHand, card)
 
-async def drawCards(game, player, numToDraw):
+
+def drawCards(game, player, numToDraw):
     """Draw multiple cards
 
     Args:
@@ -94,7 +104,8 @@ async def drawCards(game, player, numToDraw):
         None
     """
     for _ in range(numToDraw):
-        await evaluate(game, drawCard, player)
+        evaluate(game, drawCard, player)
+
 
 def mill(game, player):
     """Selected player mills one card
@@ -108,6 +119,7 @@ def mill(game, player):
     """
     card = player.getTopOfDeck()
     evaluate(game, deckToGrave, card)
+
 
 def millCards(game, player, numToMill):
     """Mill multiple cards
@@ -123,17 +135,19 @@ def millCards(game, player, numToMill):
     for _ in range(numToMill):
         evaluate(game, mill, player)
 
+
 def untap(game, card):
     """Untap card
 
     Args:
         game (Game): Game Object
         card (Card): Card to untap
-        
+
     Returns:
         None
     """
     card.tapped = False
+
 
 def untapCards(game, cardsToUntap):
     """Untap multiple cards
@@ -141,12 +155,13 @@ def untapCards(game, cardsToUntap):
     Args:
         game (Game): Game Object
         cardsToUntap (List(Card)): Cards to untap
-        
+
     Returns:
         None
     """
     for card in cardsToUntap:
         evaluate(game, untap, card)
+
 
 def untapAll(game, activePlayer):
     """Untap all cards controlled by the active player during the Untap step
@@ -154,20 +169,21 @@ def untapAll(game, activePlayer):
     Args:
         game (Game): Game Object
         activePlayer (Player): Player whose cards need to be untapped
-        
+
     Returns:
         None
     """
     for card in activePlayer.getField():
         evaluate(game, untap, card)
 
-async def tap(game, card):
+
+def tap(game, card):
     """Tap card
 
     Args:
         game (Game): Game Object
         card (Card): Card to tap
-        
+
     Returns:
         None
     """
@@ -185,7 +201,8 @@ async def tap(game, card):
         }
     }
 
-    await game.notifyAll(msg)
+    game.notifyAll(msg)
+
 
 def tapCards(game, cardsToTap):
     """Tap multiple cards
@@ -193,12 +210,13 @@ def tapCards(game, cardsToTap):
     Args:
         game (Game): Game Object
         cardsToTap (List(Card)): Cards to tap
-        
+
     Returns:
         None
     """
     for card in cardsToTap:
         evaluate(game, tap, card)
+
 
 def sacrifice(game, source, target):
     """Sacrifices the target card.
@@ -214,8 +232,10 @@ def sacrifice(game, source, target):
     evaluate(game, dies, game, target)
     evaluate(game, fieldToGrave, source, target)
 
+
 def sacrificeCards(game, cardsToSacrifice):
     pass
+
 
 def destroy(game, source, target):
     """Destroy target card.
@@ -229,6 +249,7 @@ def destroy(game, source, target):
         None
     """
     evaluate(game, fieldToGrave, target)
+
 
 def destroyCards(game, source, cardsToBeDestroyed):
     """Destroy multiple cards.
@@ -250,8 +271,10 @@ def destroyCards(game, source, cardsToBeDestroyed):
     for card in legalCards:
         evaluate(game, destroy, game, source, card)
 
+
 def etb(game, card):
     pass
+
 
 def dies(game, target):
     """Used to trigger "When ~ dies" abilities.
@@ -265,6 +288,7 @@ def dies(game, target):
     """
     pass
 
+
 def phaseIn(game, activePlayer):
     """Phases in all cards the activePlayer controls.
 
@@ -276,6 +300,7 @@ def phaseIn(game, activePlayer):
         None
     """
     pass
+
 
 def phaseOut(game, card):
     """Phases out a card.
@@ -289,7 +314,8 @@ def phaseOut(game, card):
     """
     pass
 
-def emptyManaPools(game):    
+
+def emptyManaPools(game):
     """Remove all mana from all player's mana pool. Used during step changes
 
     Args:
@@ -298,10 +324,12 @@ def emptyManaPools(game):
     Returns:
         None
     """
-    colors = set(Color.WHITE, Color.BLUE, Color.BLACK, Color.RED, Color.GREEN, Color.COLORLESS)
-    for player in set(game.players):
+    colors = {Color.WHITE, Color.BLUE, Color.BLACK,
+              Color.RED, Color.GREEN, Color.COLORLESS}
+    for player in game.players:
         for color in colors:
             removeAllMana(game, player, color)
+
 
 def removeAllMana(game, player, color):
     """Remove all mana of a certain color in player's mana pool.
@@ -315,6 +343,7 @@ def removeAllMana(game, player, color):
         None
     """
     player.manaPool[color] = 0
+
 
 def changeManaColor(game, player, currentColor, newColor):
     """Change mana of one color to another in the player's mana pool.
@@ -332,6 +361,7 @@ def changeManaColor(game, player, currentColor, newColor):
     player.manaPool[currentColor] = 0
     player.manaPool[newColor] += amount
 
+
 def removeMana(game, player, color, amount):
     """Remove mana from player's mana pool.
 
@@ -346,7 +376,8 @@ def removeMana(game, player, color, amount):
     """
     player.manaPool[color] -= amount
 
-async def addMana(game, player, color, amount):
+
+def addMana(game, player, color, amount):
     """Add mana to player's mana pool.
 
     Args:
@@ -378,7 +409,8 @@ async def addMana(game, player, color, amount):
         }
     }
 
-    await game.notifyAll(msg)
+    game.notifyAll(msg)
+
 
 def attach(game, source, target):
     """Attach card to another card.
@@ -393,6 +425,7 @@ def attach(game, source, target):
     """
     pass
 
+
 def unattach(game, attachment, target):
     """Unattach card from another card.
 
@@ -406,20 +439,26 @@ def unattach(game, attachment, target):
     """
     pass
 
+
 def transform(game, card):
     pass
+
 
 def discardCards(game, cardsToDiscard):
     pass
 
+
 def discardCard(game, card):
     pass
+
 
 def discardHand(game, player):
     pass
 
+
 def discardToHandSize(game, player):
     pass
+
 
 def endPhase(game, activePlayer, phase):
     """End the current phase
@@ -436,6 +475,7 @@ def endPhase(game, activePlayer, phase):
     for player in game.players:
         player.passed = False
 
+
 def beginPhase(game, activePlayer, phase):
     """Begin a new phase
 
@@ -450,6 +490,13 @@ def beginPhase(game, activePlayer, phase):
     game.currPhase = phase
     game.activePlayer = activePlayer
 
+    msg = {
+        "activePlayer": activePlayer.playerID,
+        "phase": str(phase)
+    }
+    game.notifyAll("Start Phase", msg)
+
+
 def lose(game, player, cause):
     """Chosen player will lose the game and will preform any associated cleanup
 
@@ -463,6 +510,7 @@ def lose(game, player, cause):
     """
     pass
 
+
 def win(game, player):
     """Chosen player will win the game and will preform any associated cleanup
 
@@ -475,17 +523,39 @@ def win(game, player):
     """
     pass
 
-def choose(options, player, inquiryType, numOfChoices):
+
+def choose(game, options, player, inquiryType, numOfChoices):
     if (len(options) == 0):
         return None
-    if (len(options) == 1):
-        return options[0]
+    if inquiryType == InquiryType.BOOLEAN:
+        msg = {
+            "type": "Choose",
+            "data": {
+                "type": str(inquiryType),
+                "inquiry": options,
+                "num": numOfChoices
+            }
+        }
+        game.notify(msg, player)
+        game.waitingOn = player
+
+        while(True):
+            sleep(0.1)
+            if game.chosenAnswer != None:
+                ans = game.chosenAnswer
+                print(ans)
+                game.chosenAnswer = None
+                game.waitingOn = None
+                return ans
+
     pass
+
 
 def order(options, player):
     if(len(options) == 1):
         return options[0]
     pass
+
 
 def isLegal(*args):
     """Check if a given action and arguments are legal
@@ -518,8 +588,9 @@ def isLegal(*args):
         for pair in someSet:
             if pair[1] != GameRuleAns.ALLOWED:
                 return False
-    
+
     return True
+
 
 def isReplaced(*args):
     """Check if a given action and arguments will be replaced
@@ -543,7 +614,6 @@ def isReplaced(*args):
         if x != GameRuleAns.ALLOWED:
             someSet.add((x, None))
 
-
     if len(someSet) != 0:
         for pair in someSet:
             for allowance in allowances:
@@ -557,13 +627,14 @@ def isReplaced(*args):
 
     for replacement in replacements:
         if replacement.isActive() and replacement.getSource() not in game.globalDict["ReplacedBy"] and replacement.getFunc()(args[1], args[2:]):
-           return True
-    
+            return True
+
     return False
 
-async def evaluate(*args):
+
+def evaluate(*args):
     """Important method for the engine. Detailed in LexMagico.md
-    
+
     Normal Arguments:
         game (Game): Game Object
         action(Function): The game action being checked
@@ -596,7 +667,6 @@ async def evaluate(*args):
         if x != GameRuleAns.ALLOWED:
             someSet.add((x, None))
 
-
     if len(someSet) != 0:
         for pair in someSet:
             for allowance in allowances:
@@ -608,30 +678,30 @@ async def evaluate(*args):
             if pair[1] != GameRuleAns.ALLOWED:
                 return GameRuleAns.DENIED
 
-
     someOtherSet = set()
     for replacement in replacements:
         if replacement.isActive() and replacement.getSource() not in game.replacedBy and replacement.getFunc()(args[1], args[2:]):
             someOtherSet.add(replacement)
     if len(someOtherSet) != 0:
-        chosen = choose(someOtherSet, game.activePlayer, InquiryType.REPLACEMENT , 1)
+        chosen = choose(game, someOtherSet, game.activePlayer,
+                        InquiryType.REPLACEMENT, 1)
         game.replacedBy.append(chosen.getSource)
         chosen.resolveEffect()
-    
+
     if len(args) == 2:
-        await args[1](args[0])
+        args[1](args[0])
     elif len(args) == 3:
-        await args[1](args[0], args[2])
+        args[1](args[0], args[2])
     elif len(args) == 4:
-        await args[1](args[0], args[2], args[3])
+        args[1](args[0], args[2], args[3])
     elif len(args) == 5:
-        await args[1](args[0], args[2], args[3], args[4])
+        args[1](args[0], args[2], args[3], args[4])
     elif len(args) == 6:
-        await args[1](args[0], args[2], args[3], args[4], args[5])
+        args[1](args[0], args[2], args[3], args[4], args[5])
     elif len(args) == 7:
-        await args[1](args[0], args[2], args[3], args[4], args[5], args[6])
+        args[1](args[0], args[2], args[3], args[4], args[5], args[6])
     elif len(args) == 8:
-        await args[1](args[0], args[2], args[3], args[4], args[5], args[6], args[7])
+        args[1](args[0], args[2], args[3], args[4], args[5], args[6], args[7])
 
     for tracker in game.trackers:
         tracker.run()

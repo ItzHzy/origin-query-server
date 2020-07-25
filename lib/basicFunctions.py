@@ -1,16 +1,18 @@
-from enumeratedTypes import * 
-from gameElements import * 
-from movingZones import * 
-from combatFunctions import * 
-from gameActions import * 
+from enumeratedTypes import *
+from gameElements import *
+from movingZones import *
+from combatFunctions import *
+from gameActions import *
+
 
 def doPhaseActions(game):
-    currPhase = game.GD("Current Phase")
-    activePlayer = game.GD("Active Player")
+    currPhase = game.currPhase
+    activePlayer = game.activePlayer
+    print(currPhase)
 
     if currPhase == Turn.UNTAP:
         phaseIn(game, activePlayer)
-        checkSBA(game)
+        # checkSBA(game)
         untapAll(game, activePlayer)
     elif currPhase == Turn.UPKEEP:
         phaseIn(game, activePlayer)
@@ -30,21 +32,23 @@ def doPhaseActions(game):
     elif currPhase == Turn.CLEANUP:
         discardToHandSize(game, activePlayer)
         removeAllDamage(game)
-        #Check for SBAs and complete loop rule 514       
+        # Check for SBAs and complete loop rule 514
 
-nextPhase = { 
-    Turn.UNTAP : Turn.UPKEEP,
-    Turn.UPKEEP : Turn.DRAW,
-    Turn.DRAW : Turn.FIRST_MAIN,
-    Turn.FIRST_MAIN : Turn.BEGIN_COMBAT,
-    Turn.BEGIN_COMBAT : Turn.DECLARE_ATTACKS,
-    Turn.DECLARE_ATTACKS : Turn.DECLARE_BLOCKS,
-    Turn.DECLARE_BLOCKS : Turn.FIRST_COMBAT_DAMAGE,
-    Turn.FIRST_COMBAT_DAMAGE : Turn.SECOND_COMBAT_DAMAGE,
-    Turn.SECOND_COMBAT_DAMAGE : Turn.END_COMBAT,
-    Turn.END_COMBAT : Turn.SECOND_MAIN,
-    Turn.SECOND_MAIN : Turn.BEGIN_END,
-    Turn.BEGIN_END : Turn.CLEANUP }
+
+nextPhase = {
+    Turn.UNTAP: Turn.UPKEEP,
+    Turn.UPKEEP: Turn.DRAW,
+    Turn.DRAW: Turn.FIRST_MAIN,
+    Turn.FIRST_MAIN: Turn.BEGIN_COMBAT,
+    Turn.BEGIN_COMBAT: Turn.DECLARE_ATTACKS,
+    Turn.DECLARE_ATTACKS: Turn.DECLARE_BLOCKS,
+    Turn.DECLARE_BLOCKS: Turn.FIRST_COMBAT_DAMAGE,
+    Turn.FIRST_COMBAT_DAMAGE: Turn.SECOND_COMBAT_DAMAGE,
+    Turn.SECOND_COMBAT_DAMAGE: Turn.END_COMBAT,
+    Turn.END_COMBAT: Turn.SECOND_MAIN,
+    Turn.SECOND_MAIN: Turn.BEGIN_END,
+    Turn.BEGIN_END: Turn.CLEANUP}
+
 
 def goToNextPhase(game):
     currPhase = game.currPhase
@@ -54,17 +58,24 @@ def goToNextPhase(game):
     if currPhase == Turn.CLEANUP and Turn.EXTRA in activePlayer.property and activePlayer.property[Turn.EXTRA] > 0:
         activePlayer.property[Turn.EXTRA] -= 1
         evaluate(game, beginPhase, activePlayer, Turn.UNTAP)
+
     elif currPhase == Turn.CLEANUP:
-        evaluate(game, beginPhase, game.getNextPlayer(activePlayer), Turn.UNTAP)
+        nextPlayer = game.getNextPlayer(activePlayer)
+        evaluate(game, beginPhase, nextPlayer, Turn.UNTAP)
+
     elif currPhase in activePlayer.property and activePlayer.property[currPhase] > 0:
         activePlayer.property[currPhase] -= 1
         evaluate(game, beginPhase, activePlayer, currPhase)
+
     else:
-        evaluate(game, beginPhase, activePlayer, nextPhase[currPhase]) # pylint: disable=unsubscriptable-object
+        evaluate(game, beginPhase, activePlayer,
+                 nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
+
 
 def givePriority(game, player):
-    checkSBA(game)
-    game.SD("Priority", player)
+    # checkSBA(game)
+    game.priority = player
+
 
 def checkSBA(game):
     sbaTaken = True
@@ -136,15 +147,17 @@ def checkSBA(game):
                                 sbaTaken = True
                     elif permanent.counters[Counter.P1P1] > 0 and permanent.counters[Counter.M1M1] > 0:
                         if permanent.counters[Counter.P1P1] > permanent.counters[Counter.M1M1]:
-                            permanent.counters[Counter.P1P1] = permanent.counters[Counter.P1P1] - permanent.counters[Counter.M1M1]
+                            permanent.counters[Counter.P1P1] = permanent.counters[Counter.P1P1] - \
+                                permanent.counters[Counter.M1M1]
                             permanent.counters[Counter.M1M1] = 0
                         else:
-                            permanent.counters[Counter.M1M1] = permanent.counters[Counter.M1M1] - permanent.counters[Counter.P1P1]
+                            permanent.counters[Counter.M1M1] = permanent.counters[Counter.M1M1] - \
+                                permanent.counters[Counter.P1P1]
                             permanent.counters[Counter.P1P1] = 0
                         sbaTaken = True
     for cards in legendRuled:
         diedToSBA.add(enactLegendRule(game, cards))
-    
+
     for card in cardsToBeSacrificed:
         if not isReplaced(game, fieldToGrave, card):
             evaluate(game, sacrifice, COD.SBA, card)
@@ -161,17 +174,21 @@ def checkSBA(game):
         evaluate(game, fieldToGrave, card)
     for card in diedToSBA:
         evaluate(game, fieldToGrave, card)
-   
+
+
 def verifyLegendStatus(game, player):
     pass
+
 
 def enactLegendRule(game, cards):
     # returns the set of cards to be removed selected by the player
     pass
 
+
 def verifyAttachment(game, card):
-    #Returns True on legal attachment False on illegal attachment
+    # Returns True on legal attachment False on illegal attachment
     pass
+
 
 def addCosts(game, obj, mainCost, additionalCosts):
     """Used to add up all costs and discounts for a spell or ability
@@ -186,12 +203,12 @@ def addCosts(game, obj, mainCost, additionalCosts):
             [action2, arg2], 
             ...]] 
         additionalCosts(List(List)): Lists of the same form as mainCost
-        
+
     Returns:
         totalCost(Cost): The combined costs and discounts of everything 
     """
     totalCost = Cost()
-    totalMana = {}  
+    totalMana = {}
 
     if isinstance(mainCost, dict):
         for manaType in mainCost:
@@ -208,10 +225,10 @@ def addCosts(game, obj, mainCost, additionalCosts):
     else:
         for cost in mainCost:
             totalCost.additional.append(cost)
-    
+
     if additionalCosts != None:
         for addedCost in additionalCosts:
-            if isinstance(addedCost, dict): # Do if the additional cost is a mana payment
+            if isinstance(addedCost, dict):  # Do if the additional cost is a mana payment
                 for manaType in addedCost:
                     amount = mainCost[manaType]
 
@@ -230,16 +247,19 @@ def addCosts(game, obj, mainCost, additionalCosts):
 
     return totalCost
 
-def doSomething(game, player):
+
+async def doAction(game, player):
     # waits for the player to make a choice
-    pass
+    while player.action == None:
+        await asyncio.sleep(0)
+
 
 def declareCast(game, instanceID, player):
     card = game.getCard(instanceID)
-    allEffects = card.effects.copy() # A copy of all effects on the card
+    allEffects = card.effects.copy()  # A copy of all effects on the card
 
-    chosenEffects = [] # Chosen effects
-    effectIndexesAdded = [] # indexes of the effects added from allEffects
+    chosenEffects = []  # Chosen effects
+    effectIndexesAdded = []  # indexes of the effects added from allEffects
 
     mainCost = None
     addedCosts = None
@@ -257,16 +277,18 @@ def declareCast(game, instanceID, player):
                     effectList.append(effect)
             else:
                 effectList.append(effect)
-        chosenEffects.append(choose(effectList, player, InquiryType.MODAL, effectList.append(effect)))
+        chosenEffects.append(
+            choose(game, effectList, player, InquiryType.MODAL, effectList.append(effect)))
 
-    # Chose what x should be 
+    # Chose what x should be
     if Keyword.DECLARE_VAR in card.specialTypes:
-        card.property["X"] = choose(None, player, InquiryType.VARIABLE, 1)
+        card.property["X"] = choose(
+            game, None, player, InquiryType.VARIABLE, 1)
 
     # Choose main cost or alt cost if applicable and add their respective effect
     if len(card.mainCosts) > 1:
-        c = choose(card.mainCosts, player, InquiryType.MAIN_COST, 1)
-        index = c[3] # index of effect associated with the chosen cost
+        c = choose(game, card.mainCosts, player, InquiryType.MAIN_COST, 1)
+        index = c[3]  # index of effect associated with the chosen cost
         if not (index in effectIndexesAdded):
             effectIndexesAdded.append(index)
             chosenEffects.append(allEffects[index])
@@ -279,8 +301,9 @@ def declareCast(game, instanceID, player):
             chosenEffects.append(allEffects[index])
 
     # Add chosen additional costs and their respective effects
-    addedCosts = choose(card.additionalCosts, player, InquiryType.ADD_COST, None)
-    
+    addedCosts = choose(game, card.additionalCosts,
+                        player, InquiryType.ADD_COST, None)
+
     # Add all chosen effect to result.effect
     for effect in chosenEffects:
         result.addEffect(effect[1])
@@ -290,7 +313,8 @@ def declareCast(game, instanceID, player):
         result.rulesText += " " + effect[0]
 
     # Instantiate a cost object with the chosen costs and set it in result.cost
-    result.cost = addCosts(game, card, mainCost[1], [item[1] for item in addedCosts])
+    result.cost = addCosts(game, card, mainCost[1], [
+                           item[1] for item in addedCosts])
 
     # Add cost types to card properties like Flashback
     for costType in mainCost[0]:
@@ -302,6 +326,7 @@ def declareCast(game, instanceID, player):
     # Evaluate cast
     evaluate(game, cast, card)
 
+
 async def declareActivation(game, abilityID):
     ability = game.GAT[abilityID]
     result = Effect()
@@ -312,32 +337,10 @@ async def declareActivation(game, abilityID):
     result.rulesText = ability.rulesText
     await evaluate(game, activateAbility, result)
 
+
 def decideSplice(card):
     pass
 
-def resolve(game, obj):
-    for action in obj.effect:
-        if len(action[1]) == 0:
-            evaluate(game, action[0])
-        elif len(action[1]) == 1:
-            evaluate(game, action[0], action[1][0])
-        elif len(action[1]) == 2:
-            evaluate(game, action[0], action[1][0], action[1][1])
-        elif len(action[1]) == 3:
-            evaluate(game, action[0], action[1][0], action[1][1], action[1][2])
-        elif len(action[1]) == 4:
-            evaluate(game, action[0], action[1][0], action[1][1], action[1][2], action[1][3])
-        elif len(action[1]) == 5:
-            evaluate(game, action[0], action[1][0], action[1][1], action[1][2], action[1][3], action[1][4])
 
 def checkModifiers(game):
-    pass 
-
-def winnerDecided(game):
-    if game.globalDict["Winners"] != []:
-        return True
-    return False
-
-
-
-
+    pass
