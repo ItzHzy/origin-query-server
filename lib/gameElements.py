@@ -1,6 +1,6 @@
 from enumeratedTypes import *
 from gameActions import evaluate, drawCards
-from basicFunctions import doPhaseActions, givePriority, goToNextPhase, doAction
+from basicFunctions import doPhaseActions, givePriority, goToNextPhase, doAction, askBinaryQuestion
 from uuid import uuid1
 from database import cards_db
 from os.path import normpath
@@ -42,6 +42,9 @@ class Player():
         self.cards = None
         self.isReady = False
         self.answer = None
+        self.chosenAction = None
+
+        self.isDefending = False
 
         self.game.AddZone(self, Zone.DECK, self.getDeck())
         self.game.AddZone(self, Zone.FIELD, self.getField())
@@ -142,6 +145,11 @@ class Card():
 
         self.isCopy = False
         self.isToken = False
+
+        self.isAttacking = False
+        self.attacking = None
+        self.isBlocking = False
+        self.blocking = None
 
     def getCardTypes(self):
         return self.cardTypes
@@ -292,6 +300,7 @@ class Game():
         self.allCards = {}
         self.GAT = {}  # Global Ability Table
         self.GMT = {}  # Global Modifier Table
+        self.COMBAT_MATRIX = []
         self.costModifiers = []
         self.trackers = []
 
@@ -299,7 +308,6 @@ class Game():
         self.currPhase = None
         self.priority = None
         self.waitingOn = None
-        self.chosenAnswer = None
 
         self.replacedBy = []
 
@@ -339,6 +347,11 @@ class Game():
         self.replacedBy = []
         pass
 
+    def findPlayer(self, playerID):
+        for player in self.players:
+            if player.playerID == playerID:
+                return player
+
     def getNextPlayer(self, player):
         return
 
@@ -373,7 +386,8 @@ class Game():
         self.players.remove(player)
 
     async def run(self):
-        for player in self.players:
+        # loop used to setup the player's decks and other setup components
+        for player in self.players:  # import cards into player's decks
             for key in player.cards:
                 result = cards_db.find_one(oracle_id=key)
                 module_ = import_module(result['filepath'])
@@ -382,16 +396,18 @@ class Game():
                     card = class_(self, player, key)
                     player.deck.append(card)
                     self.allCards[card.instanceID] = card
-            shuffle(player.deck)
-            drawCards(self, player, 7)
+
+            shuffle(player.deck)  # shuffle player's decks
+
+            drawCards(self, player, 7)  # each player draws seven cards
+
+        # let the current task sleep so that the messages emitted during setup can go through
         await asyncio.sleep(0)
-
-        stack = self.zones[Zone.STACK]
-        self.activePlayer = self.players[0]
         self.currPhase = Turn.UNTAP
+        self.activePlayer = self.players[0]
 
-        while not self.won:
-            doPhaseActions(self)
+        while not self.won:  # main gameplay loop
+            await doPhaseActions(self)
             passedInSuccession = False
             while not passedInSuccession:
                 passedInSuccession = True
@@ -399,18 +415,15 @@ class Game():
                     # checkSBA(self)
                     givePriority(self, player)
 
-                    msg = {"question": "Do action?"}
-                    self.notify("Binary Question", msg, player)
-
-                    while player.answer == None:
-                        await asyncio.sleep(0)
-
-                    if player.answer:
-                        player.answer = None
+                    if await askBinaryQuestion(self, "Take Action?", player):
                         passedInSuccession = False
                         while not player.passed:
                             await doAction(self, player)
-            evaluate(self, goToNextPhase)
+
+            if self.zones[Zone.STACK] != []:
+                self.pop()
+            else:
+                evaluate(self, goToNextPhase)
 
     def notifyAll(self, event, msg):
         asyncio.create_task(sio.emit(event, msg, room=self.gameID))

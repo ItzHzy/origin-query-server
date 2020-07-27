@@ -1,11 +1,10 @@
 from enumeratedTypes import *
-from gameElements import *
 from movingZones import *
 from combatFunctions import *
 from gameActions import *
 
 
-def doPhaseActions(game):
+async def doPhaseActions(game):
     currPhase = game.currPhase
     activePlayer = game.activePlayer
     print(currPhase)
@@ -16,15 +15,14 @@ def doPhaseActions(game):
         untapAll(game, activePlayer)
     elif currPhase == Turn.UPKEEP:
         phaseIn(game, activePlayer)
-        checkModifiers(game)
     elif currPhase == Turn.DRAW:
         evaluate(game, drawCard, activePlayer)
     elif currPhase == Turn.DECLARE_ATTACKS:
-        chooseAttackers(game, activePlayer)
+        await chooseAttackers(game, activePlayer)
     elif currPhase == Turn.DECLARE_BLOCKS:
         for player in game.players:
-            if player != activePlayer:
-                chooseBlockers(game, player)
+            if player != activePlayer and player.isDefending:
+                await chooseBlockers(game, player)
     elif currPhase == Turn.FIRST_COMBAT_DAMAGE:
         resolveCombatMatrix_FS(game)
     elif currPhase == Turn.SECOND_COMBAT_DAMAGE:
@@ -250,8 +248,20 @@ def addCosts(game, obj, mainCost, additionalCosts):
 
 async def doAction(game, player):
     # waits for the player to make a choice
-    while player.action == None:
+
+    while player.chosenAction == None:
         await asyncio.sleep(0)
+
+
+async def askBinaryQuestion(game, msg, player):
+    player.answer = None
+    game.notify("Binary Question", msg, player)
+
+    try:
+        while player.answer == None:
+            await asyncio.sleep(0)
+    finally:
+        return player.answer
 
 
 def declareCast(game, instanceID, player):

@@ -147,6 +147,7 @@ def untap(game, card):
         None
     """
     card.tapped = False
+    game.notifyAll("Untap", card.instanceID)
 
 
 def untapCards(game, cardsToUntap):
@@ -525,29 +526,6 @@ def win(game, player):
 
 
 def choose(game, options, player, inquiryType, numOfChoices):
-    if (len(options) == 0):
-        return None
-    if inquiryType == InquiryType.BOOLEAN:
-        msg = {
-            "type": "Choose",
-            "data": {
-                "type": str(inquiryType),
-                "inquiry": options,
-                "num": numOfChoices
-            }
-        }
-        game.notify(msg, player)
-        game.waitingOn = player
-
-        while(True):
-            sleep(0.1)
-            if game.chosenAnswer != None:
-                ans = game.chosenAnswer
-                print(ans)
-                game.chosenAnswer = None
-                game.waitingOn = None
-                return ans
-
     pass
 
 
@@ -683,10 +661,11 @@ def evaluate(*args):
         if replacement.isActive() and replacement.getSource() not in game.replacedBy and replacement.getFunc()(args[1], args[2:]):
             someOtherSet.add(replacement)
     if len(someOtherSet) != 0:
-        chosen = choose(game, someOtherSet, game.activePlayer,
-                        InquiryType.REPLACEMENT, 1)
-        game.replacedBy.append(chosen.getSource)
-        chosen.resolveEffect()
+        pass
+        # chosen = choose(game, someOtherSet, game.activePlayer,
+        #                 InquiryType.REPLACEMENT, 1)
+        # game.replacedBy.append(chosen.getSource)
+        # chosen.resolveEffect()
 
     if len(args) == 2:
         args[1](args[0])

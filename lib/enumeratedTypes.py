@@ -5,16 +5,19 @@ class Status(Enum):
     ATTACKING = auto()
     DEFENDING = auto()
 
+
 class GameRuleAns(Enum):
     ALLOWED = auto()
     DENIED = auto()
     UNKNOWN = auto()
     CONDITIONAL = auto()
 
+
 class Placeholder(Enum):
     VARIABLE = auto()
     TARGET = auto()
     YOU = auto()
+
 
 class InquiryType(Enum):
     TARGET = auto()
@@ -24,13 +27,15 @@ class InquiryType(Enum):
     VARIABLE = auto()
     MAIN_COST = auto()
     ADD_COST = auto()
-    
+
+
 class CostType(Enum):
     NORMAL = auto()
     FLASHBACK = auto()
     OVERLOAD = auto()
     KICKER = auto()
     MULTIKICKER = auto()
+
 
 class Color(Enum):
     WHITE = auto()
@@ -39,6 +44,7 @@ class Color(Enum):
     RED = auto()
     GREEN = auto()
     COLORLESS = auto()
+
 
 class ManaType(Enum):
     WHITE = auto()
@@ -49,7 +55,7 @@ class ManaType(Enum):
     COLORLESS = auto()
 
     GENERIC = auto()
-    VARIBLE = auto() # Represents X
+    VARIBLE = auto()  # Represents X
     SNOW = auto()
 
     # Hybrid Mana
@@ -78,20 +84,22 @@ class ManaType(Enum):
     RP = auto()
     GP = auto()
 
+
 class Layer:
-    BASE = auto() # (name, power, toughness, abilities, types, colors)
-    ONE = auto() # copy abilities (name, power, toughness, abilities, types, colors) 
-    TWO = auto() # (controller)
-    THREE = auto() # Would be implemented for text-changes, but there's only 15 cards that do that and its not worth the overhead
-    FOUR = auto() # (addOrSet, types) Change card types True for add, false else
-    FIVE = auto() # (addOrSet, colors) Change card colors  True for add, false else
-    SIX = auto() # (addOrSet, abilities)   True for add, false else
-    SIX_0 = auto() # Used for the archetypes from BRN (Ability)
-    SIX_A = auto() # (power func, toughness func) CDA abilities 
-    SIX_B = auto() # (power, toughness) abilities that set
-    SIX_C = auto() # (power delta, toughness delta) ex Giant Growth
-    SIX_D = auto() # P/T changes from counters
-    SIX_E = auto() # P/T switching
+    BASE = auto()  # (name, power, toughness, abilities, types, colors)
+    ONE = auto()  # copy abilities (name, power, toughness, abilities, types, colors)
+    TWO = auto()  # (controller)
+    THREE = auto()  # Would be implemented for text-changes, but there's only 15 cards that do that and its not worth the overhead
+    FOUR = auto()  # (addOrSet, types) Change card types True for add, false else
+    FIVE = auto()  # (addOrSet, colors) Change card colors  True for add, false else
+    SIX = auto()  # (addOrSet, abilities)   True for add, false else
+    SIX_0 = auto()  # Used for the archetypes from BRN (Ability)
+    SIX_A = auto()  # (power func, toughness func) CDA abilities
+    SIX_B = auto()  # (power, toughness) abilities that set
+    SIX_C = auto()  # (power delta, toughness delta) ex Giant Growth
+    SIX_D = auto()  # P/T changes from counters
+    SIX_E = auto()  # P/T switching
+
 
 class Turn(Enum):
     EXTRA = auto()
@@ -109,12 +117,14 @@ class Turn(Enum):
     BEGIN_END = auto()
     CLEANUP = auto()
 
+
 class AbilityType(Enum):
     ACTIVATED = auto()
     TRIGGERED = auto()
     STATIC = auto()
     LOYALTY = auto()
     MANA = auto()
+
 
 class Zone(Enum):
     DECK = auto()
@@ -125,10 +135,12 @@ class Zone(Enum):
     STACK = auto()
     COMMAND_ZONE = auto()
 
+
 class Supertype(Enum):
     LEGENDARY = auto()
     SNOW = auto()
     BASIC = auto()
+
 
 class Type(Enum):
     CREATURE = auto()
@@ -140,11 +152,13 @@ class Type(Enum):
     PLANESWALKER = auto()
     TRIBAL = auto()
 
+
 class COD(Enum):
     HAVING_0_LIFE = auto()
     DREW_FROM_EMPTY_DECK = auto()
     POISON = auto()
     SBA = auto()
+
 
 class Split(Enum):
     DFC = auto()
@@ -154,6 +168,7 @@ class Split(Enum):
     FLIP = auto()
     ADVENTURE = auto()
 
+
 class Counter(Enum):
     POISON = auto()
     LOYALTY = auto()
@@ -161,12 +176,15 @@ class Counter(Enum):
     P1P1 = auto()
     M1M1 = auto()
 
+
 class Keyword(Enum):
-    DECLARE_VAR = auto() # Not really a keyword ability, but it couldn't be by itself
+    DECLARE_VAR = auto()  # Not really a keyword ability, but it couldn't be by itself
     HASTE = auto()
     FIRST_STRIKE = auto()
+    DOUBLE_STRIKE = auto()
     TRAMPLE = auto()
     PROWESS = auto()
+
 
 class Subtype(Enum):
     ISLAND = auto()

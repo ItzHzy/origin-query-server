@@ -1,6 +1,7 @@
-from gameElements import * # pylint: disable=unused-wildcard-import
-from enumeratedTypes import * # pylint: disable=unused-wildcard-import
-from gameActions import * # pylint: disable=unused-wildcard-import
+from gameElements import *  # pylint: disable=unused-wildcard-import
+from enumeratedTypes import *  # pylint: disable=unused-wildcard-import
+from gameActions import *  # pylint: disable=unused-wildcard-import
+
 
 def markDamage(game, source, target, amountToMark):
     """Marks creature with damage.
@@ -16,8 +17,12 @@ def markDamage(game, source, target, amountToMark):
     """
     target.damageMarked += amountToMark
 
+
 def removeAllDamage(game):
-    pass
+    for player in game.players:
+        for card in player.getField():
+            card.damageMarked = 0
+
 
 def removeDamage(game, source, target):
     """Removes all damage marked on card
@@ -31,6 +36,7 @@ def removeDamage(game, source, target):
         None
     """
     target.damageMarked = 0
+
 
 def dealDamage(game, source, target, amountToDeal):
     """Deals Damage to target depending in its type
@@ -49,6 +55,7 @@ def dealDamage(game, source, target, amountToDeal):
     elif isinstance(target, Player):
         loseLife(game, source, target, amountToDeal)
 
+
 def dealCombatDamage(game, source, target, amountToDeal):
     """Deals combat damage to the target.
 
@@ -59,6 +66,7 @@ def dealCombatDamage(game, source, target, amountToDeal):
         amountToDeal (Int): Amount of combat damage to deal to target
     """
     evaluate(game, dealDamage, source, target, amountToDeal)
+
 
 def dealNonCombatDamage(game, source, target, amountToDeal):
     """Deals Non-Combat to the target.
@@ -71,11 +79,52 @@ def dealNonCombatDamage(game, source, target, amountToDeal):
     """
     evaluate(game, dealDamage, source, target, amountToDeal)
 
-def chooseAttackers(game, activePlayer):
-    pass
 
-def chooseBlockers(game, player):
-    pass
+async def chooseAttackers(game, activePlayer):
+    while True:
+        activePlayer.answer = None
+
+        game.notify("Choose Attacks", {}, activePlayer)
+        await asyncio.sleep(0)
+
+        while activePlayer.answer == None:
+            await asyncio.sleep(0)
+
+        lst = []
+        for index, declaration in enumerate(activePlayer.answer):
+            if declaration[1][0] == "P":
+                attacker = game.allCards(declaration[0])
+                defender = game.findPlayer(declaration[1])
+            else:
+                attacker = game.allCards(declaration[0])
+                defender = game.findPlayer(declaration[1])
+
+            lst[index] = [attacker, defender]
+
+        if declareAttackers(game, lst):
+            return
+
+
+async def chooseBlockers(game, player):
+    while True:
+        player.answer = None
+
+        game.notify("Choose Blocks", {}, player)
+        await asyncio.sleep(0)
+
+        while player.answer == None:
+            await asyncio.sleep(0)
+
+        lst = []
+        for index, declaration in enumerate(player.answer):
+            blocker = game.allCards(declaration[0])
+            blocked = game.allCards(declaration[1])
+
+            lst[index] = [blocker, blocked]
+
+        if declareBlockers(game, lst):
+            return
+
 
 def declareAttackers(game, listOfAttackers):
     """Used to check if all chosen attacks are legal.
@@ -89,21 +138,33 @@ def declareAttackers(game, listOfAttackers):
         the defending Object.
 
     Returns:
-        GameRuleAns.ALLOWED if all declared attacks are legal.
-        GameRuleAns.DENIED if any declared attacks are illegal.
+        True if all declared attacks are legal.
+        False if any declared attacks are illegal.
 
     """
     for declaration in listOfAttackers:
-        if isLegal(attack.__name__, declaration[0], declaration[1]) != GameRuleAns.ALLOWED:
-            return GameRuleAns.DENIED
+        if isLegal(attack, declaration[0], declaration[1]) != GameRuleAns.ALLOWED:
+            return False
 
     for declaration in listOfAttackers:
-        declaration[0].property["isAttacking"] = True
-        declaration[0].property["Attacking"] = declaration[1]
+        if isinstance(declaration[1], Player):
+            declaration[1].isDefending = True
+        else:
+            declaration[1].getController().isDefending = True
+        declaration[0].isAttacking = True
+        declaration[0].attacking = declaration[1]
 
+    matrix = game.COMBAT_MATRIX
     for declaration in listOfAttackers:
+        matrix[declaration[0]] = {
+            "Assignable Damage": calculatePossibleDamage(game, declaration[0]),
+            "Blockers": [],
+            "Defender": declaration[1]
+        }
         evaluate(attack, game, declaration[0], declaration[1])
-    return GameRuleAns.ALLOWED
+
+    return True
+
 
 def declareBlockers(game, listOfBlockers):
     """Used to check if all chosen blocks are legal
@@ -114,21 +175,25 @@ def declareBlockers(game, listOfBlockers):
         is the declared blocker and Card 2 is the Card being blocked.
 
     Returns:
-        GameRuleAns
+        True if all declared blocks are legal.
+        False if any declared blocks are illegal.
 
     """
     for declaration in listOfBlockers:
-        if isLegal(block.__name__, declaration[0], declaration[1]) != GameRuleAns.ALLOWED:
-            return GameRuleAns.DENIED
+        if isLegal(block, declaration[0], declaration[1]) != GameRuleAns.ALLOWED:
+            return False
 
     for declaration in listOfBlockers:
-        declaration[0].property["isBlocking"] = True
-        declaration[0].property["Blocking"] = declaration[1]
-        declaration[1].property["Blocked"] = True
+        declaration[0].isBlocking = True
+        declaration[0].blocking = declaration[1]
 
+    matrix = game.COMBAT_MATRIX
     for declaration in listOfBlockers:
+        matrix[declaration[0]]["Blockers"].append(declaration[1])
         evaluate(block, game, declaration[0], declaration[1])
-    return GameRuleAns.ALLOWED
+
+    return True
+
 
 def attack(game, attacker, defender):
     """Used to trigger "When ~ attacks" abilities
@@ -141,7 +206,8 @@ def attack(game, attacker, defender):
     Returns:
         None
     """
-    return None
+    pass
+
 
 def block(game, blocker, blocked):
     """Used to trigger "When ~ blocks" or "When ~ is blocked" abilities
@@ -154,52 +220,65 @@ def block(game, blocker, blocked):
     Returns:
         None
     """
-    return None
-
-def resolveCombatMatrix_FS(game):
-    matrix = game.GD("GLOBAL_COMBAT_MATRIX")
-
-    for attacker in matrix:
-        blockers = attacker[2]
-        defender = attacker[3]
-        if attacker.hasKeyword(Keyword.FIRST_STRIKE):
-            for blocker in blockers:
-                attacker[1] = assignDamage(game, attacker, blocker)
-        for blocker in blockers:
-            if blocker.hasKeyword(Keyword.FIRST_STRIKE):
-                evaluate(game, dealCombatDamage, blocker, attacker)
-        if attacker[1] > 0 and attacker.hasKeyword(Keyword.TRAMPLE):
-            evaluate(game, dealCombatDamage, attacker, defender)
-
-def resolveCombatMatrix(game):
-    matrix = game.GD("GLOBAL_COMBAT_MATRIX")
-
-    for attacker in matrix:
-        blockers = attacker[2]
-        defender = attacker[3]
-        if not attacker.hasKeyword(Keyword.FIRST_STRIKE):
-            for blocker in blockers:
-                attacker[1] = assignDamage(game, attacker, blocker)
-        for blocker in blockers:
-            if not blocker.hasKeyword(Keyword.FIRST_STRIKE):
-                evaluate(game, dealCombatDamage, blocker, attacker)
-        if attacker[1] > 0 and attacker.hasKeyword(Keyword.TRAMPLE):
-            evaluate(game, dealCombatDamage, attacker, defender)
-
-def calculatePossibleDamage(game, card):
     pass
 
+
+def resolveCombatMatrix_FS(game):
+    matrix = game.COMBAT_MATRIX
+
+    for attacker in matrix:
+        blockers = attacker["Blockers"]
+        defender = attacker["Defender"]
+        if attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+            for blocker in blockers:
+                assignDamage(game, attacker, blocker)
+        for blocker in blockers:
+            if blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+                evaluate(game, dealCombatDamage, blocker, attacker)
+        if attacker["Assignable Damage"] > 0 and attacker.hasKeyword(Keyword.TRAMPLE) and attacker.hasKeyword(Keyword.FIRST_STRIKE):
+            evaluate(game, dealCombatDamage, attacker,
+                     defender, attacker["Assignable Damage"])
+
+
+def resolveCombatMatrix(game):
+    matrix = game.COMBAT_MATRIX
+
+    for attacker in matrix:
+        blockers = attacker["Blockers"]
+        defender = attacker["Defender"]
+        if not attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+            for blocker in blockers:
+                assignDamage(game, attacker, blocker)
+        for blocker in blockers:
+            if not blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+                evaluate(game, dealCombatDamage, blocker, attacker)
+        if attacker["Assignable Damage"] > 0 and attacker.hasKeyword(Keyword.TRAMPLE) and (not blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE)):
+            evaluate(game, dealCombatDamage, attacker,
+                     defender, attacker["Assignable Damage"])
+
+    game.COMBAT_MATRIX = {}
+
+
+def calculatePossibleDamage(game, card):
+    return card.power
+
+
 def assignDamage(game, source, target):
+    matrix = game.COMBAT_MATRIX
+    damageForLethal = target.toughness
+    if matrix[source]["Assignable Damage"] >= damageForLethal:
+        evaluate(game, dealCombatDamage, source, target, damageForLethal)
+    elif matrix[source]["Assignable Damage"] > 0:
+        evaluate(game, dealCombatDamage, source, target,
+                 matrix[source]["Assignable Damage"])
+        matrix[source]["Assignable Damage"] = 0
+
     # Has to call dealCombatDamage
-    pass 
+    pass
+
 
 def fight(game, source, target):
     pass
-
-
-
-
-
 
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
