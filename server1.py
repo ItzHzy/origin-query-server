@@ -1,4 +1,4 @@
-from gameElements import *
+import gameElements
 from uuid import uuid1
 import asyncio
 from preload import sio, app, web
@@ -58,10 +58,10 @@ async def showGames(sid):
 async def createGame(sid, msg):
     user = sidToUser[sid]
     gameID = "G-" + str(uuid1())
-    game = Game(gameID, msg["title"], int(
+    game = gameElements.Game(gameID, msg["title"], int(
         msg["numPlayers"]), user, "OPEN")
     gameListings[gameID] = game
-    player = Player(gameListings[gameID], user["name"], sid)
+    player = gameElements.Player(gameListings[gameID], user["name"], sid)
     player.isHost = True
 
     ret_msg = {
@@ -81,7 +81,7 @@ async def joinGame(sid, msg):
     gameID = msg["gameID"]
     if gameID in gameListings:
         game = gameListings[gameID]
-        player = Player(gameListings[gameID], user["name"], sid)
+        player = gameElements.Player(gameListings[gameID], user["name"], sid)
         user["player"] = player
         game.addPlayerToGame(player)
         players = [[player.name, player.playerID] for player in game.players]
@@ -152,6 +152,18 @@ async def notReady(sid):
 async def answerQuestion(sid, msg):
     sidToUser[sid]["player"].answer = msg["answer"]
 
+
+@sio.on("Take Action")
+async def takeAction(sid, msg):
+    user = sidToUser[sid]
+    user["player"].chosenAction = msg
+
+
+@sio.on("Pass")
+async def passed(sid):
+    print("called")
+    user = sidToUser[sid]
+    user["player"].passed = True
 
 if __name__ == '__main__':
     web.run_app(app, host='localhost', port=2129)

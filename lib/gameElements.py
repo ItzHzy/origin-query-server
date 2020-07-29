@@ -1,6 +1,6 @@
 from enumeratedTypes import *
-from gameActions import evaluate, drawCards
-from basicFunctions import doPhaseActions, givePriority, goToNextPhase, doAction, askBinaryQuestion
+import gameActions
+import basicFunctions
 from uuid import uuid1
 from database import cards_db
 from os.path import normpath
@@ -8,7 +8,7 @@ from importlib import import_module
 from random import shuffle
 import json
 import asyncio
-from preload import sio  # pylint: ignore=import-error
+from preload import sio  # pylint: disable=import-error
 
 
 class Player():
@@ -25,7 +25,6 @@ class Player():
         self.maxHand = 7
         self.grave = set()
         self.exile = set()
-        self.field = set()
         self.abilities = set()
         self.counters = {}
         self.property = {}
@@ -47,13 +46,16 @@ class Player():
         self.isDefending = False
 
         self.game.AddZone(self, Zone.DECK, self.getDeck())
-        self.game.AddZone(self, Zone.FIELD, self.getField())
         self.game.AddZone(self, Zone.GRAVE, self.getGrave())
         self.game.AddZone(self, Zone.EXILE, self.getExile())
         self.game.AddZone(self, Zone.HAND, self.getHand())
 
     def getField(self):
-        return self.field
+        ans = set()
+        for card in self.game.zones[Zone.FIELD]:
+            if card.controller == self:
+                ans.add(card)
+        return ans
 
     def getGrave(self):
         return self.grave
@@ -296,7 +298,7 @@ class Game():
         self.LE = {"Rules": {}, "Allowances": {},
                    "Triggers": {}, "Replacements": {}}  # Lex Magico
 
-        self.zones = {Zone.STACK: []}
+        self.zones = {Zone.STACK: [], Zone.FIELD: set()}
         self.allCards = {}
         self.GAT = {}  # Global Ability Table
         self.GMT = {}  # Global Modifier Table
@@ -337,7 +339,7 @@ class Game():
 
     def resolve(self, obj):
         for effect in obj.effect:
-            evaluate(self, *effect)
+            gameActions.evaluate(self, *effect)
 
     def push(self, obj):
         pass
@@ -395,11 +397,12 @@ class Game():
                 for _ in range(player.cards[key]):
                     card = class_(self, player, key)
                     player.deck.append(card)
-                    self.allCards[card.instanceID] = card
+                    card.currentZone = Zone.DECK
 
             shuffle(player.deck)  # shuffle player's decks
 
-            drawCards(self, player, 7)  # each player draws seven cards
+            # each player draws seven cards
+            gameActions.drawCards(self, player, 7)
 
         # let the current task sleep so that the messages emitted during setup can go through
         await asyncio.sleep(0)
@@ -407,23 +410,23 @@ class Game():
         self.activePlayer = self.players[0]
 
         while not self.won:  # main gameplay loop
-            await doPhaseActions(self)
+            await basicFunctions.doPhaseActions(self)
             passedInSuccession = False
             while not passedInSuccession:
                 passedInSuccession = True
                 for player in self.getRelativePlayerList(self.activePlayer):
                     # checkSBA(self)
-                    givePriority(self, player)
+                    basicFunctions.givePriority(self, player)
 
-                    if await askBinaryQuestion(self, "Take Action?", player):
+                    if await basicFunctions.askBinaryQuestion(self, "Take Action?", player):
                         passedInSuccession = False
                         while not player.passed:
-                            await doAction(self, player)
+                            await basicFunctions.doAction(self, player)
 
             if self.zones[Zone.STACK] != []:
                 self.pop()
             else:
-                evaluate(self, goToNextPhase)
+                gameActions.evaluate(self, basicFunctions.goToNextPhase)
 
     def notifyAll(self, event, msg):
         asyncio.create_task(sio.emit(event, msg, room=self.gameID))
@@ -597,7 +600,7 @@ class Cost():
             pass
         if self.additional != []:
             for cost in self.additional:
-                evaluate(game, *cost)
+                gameActions.evaluate(game, *cost)
         return True  # Temporary
 
 

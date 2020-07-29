@@ -1,7 +1,8 @@
 from enumeratedTypes import *
-from movingZones import *
-from combatFunctions import *
-from gameActions import *
+import gameElements
+import gameActions
+import combatFunctions
+import asyncio
 
 
 async def doPhaseActions(game):
@@ -10,26 +11,26 @@ async def doPhaseActions(game):
     print(currPhase)
 
     if currPhase == Turn.UNTAP:
-        phaseIn(game, activePlayer)
+        gameActions.phaseIn(game, activePlayer)
         # checkSBA(game)
-        untapAll(game, activePlayer)
+        gameActions.untapAll(game, activePlayer)
     elif currPhase == Turn.UPKEEP:
-        phaseIn(game, activePlayer)
+        gameActions.phaseIn(game, activePlayer)
     elif currPhase == Turn.DRAW:
-        evaluate(game, drawCard, activePlayer)
+        gameActions.evaluate(game, gameActions.drawCard, activePlayer)
     elif currPhase == Turn.DECLARE_ATTACKS:
-        await chooseAttackers(game, activePlayer)
+        await combatFunctions.chooseAttackers(game, activePlayer)
     elif currPhase == Turn.DECLARE_BLOCKS:
         for player in game.players:
             if player != activePlayer and player.isDefending:
-                await chooseBlockers(game, player)
+                await combatFunctions.chooseBlockers(game, player)
     elif currPhase == Turn.FIRST_COMBAT_DAMAGE:
-        resolveCombatMatrix_FS(game)
+        combatFunctions.resolveCombatMatrix_FS(game)
     elif currPhase == Turn.SECOND_COMBAT_DAMAGE:
-        resolveCombatMatrix(game)
+        combatFunctions.resolveCombatMatrix(game)
     elif currPhase == Turn.CLEANUP:
-        discardToHandSize(game, activePlayer)
-        removeAllDamage(game)
+        gameActions.discardToHandSize(game, activePlayer)
+        combatFunctions.removeAllDamage(game)
         # Check for SBAs and complete loop rule 514
 
 
@@ -52,22 +53,25 @@ def goToNextPhase(game):
     currPhase = game.currPhase
     activePlayer = game.activePlayer
 
-    evaluate(game, endPhase, activePlayer, currPhase)
+    gameActions.evaluate(game, gameActions.endPhase, activePlayer, currPhase)
     if currPhase == Turn.CLEANUP and Turn.EXTRA in activePlayer.property and activePlayer.property[Turn.EXTRA] > 0:
         activePlayer.property[Turn.EXTRA] -= 1
-        evaluate(game, beginPhase, activePlayer, Turn.UNTAP)
+        gameActions.evaluate(game, gameActions.beginPhase,
+                             activePlayer, Turn.UNTAP)
 
     elif currPhase == Turn.CLEANUP:
         nextPlayer = game.getNextPlayer(activePlayer)
-        evaluate(game, beginPhase, nextPlayer, Turn.UNTAP)
+        gameActions.evaluate(game, gameActions.beginPhase,
+                             nextPlayer, Turn.UNTAP)
 
     elif currPhase in activePlayer.property and activePlayer.property[currPhase] > 0:
         activePlayer.property[currPhase] -= 1
-        evaluate(game, beginPhase, activePlayer, currPhase)
+        gameActions.evaluate(game, gameActions.beginPhase,
+                             activePlayer, currPhase)
 
     else:
-        evaluate(game, beginPhase, activePlayer,
-                 nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
+        gameActions.evaluate(game, gameActions.beginPhase, activePlayer,
+                             nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
 
 
 def givePriority(game, player):
@@ -87,15 +91,18 @@ def checkSBA(game):
         sbaTaken = False
         for player in game.players:
             if player.getLife() <= 0:
-                ans = evaluate(game, lose, player, COD.HAVING_0_LIFE)
+                ans = gameActions.evaluate(
+                    game, gameActions.lose, player, COD.HAVING_0_LIFE)
                 if ans != GameRuleAns.DENIED:
                     sbaTaken = True
             elif player.property[COD.DREW_FROM_EMPTY_DECK] == True:
-                ans = evaluate(game, lose, player, COD.DREW_FROM_EMPTY_DECK)
+                ans = gameActions.evaluate(
+                    game, gameActions.lose, player, COD.DREW_FROM_EMPTY_DECK)
                 if ans != GameRuleAns.DENIED:
                     sbaTaken = True
             elif player.counters[Counter.POISON] >= 10:
-                ans = evaluate(game, lose, player, COD.POISON)
+                ans = gameActions.evaluate(
+                    game, gameActions.lose, player, COD.POISON)
                 if ans != GameRuleAns.DENIED:
                     sbaTaken = True
             for permanent in set(player.getField()):
@@ -111,7 +118,8 @@ def checkSBA(game):
                             cardsToBeDestroyed.add(permanent)
                             sbaTaken = True
                         elif permanent.isAttached():
-                            unattach(game, permanent, permanent.getAttached())
+                            gameActions.unattach(
+                                game, permanent, permanent.getAttached())
                             sbaTaken = True
                     elif permanent.hasType(Type.PLANESWALKER):
                         if permanent.getLoyalty() <= 0:
@@ -123,10 +131,12 @@ def checkSBA(game):
                             sbaTaken = True
                     elif permanent.hasType(Subtype.EQUIPTMENT):
                         if not verifyAttachment(game, permanent):
-                            unattach(game, permanent, permanent.getAttached())
+                            gameActions.unattach(
+                                game, permanent, permanent.getAttached())
                             sbaTaken = True
                     elif permanent.isAttached() and not permanent.hasType(Subtype.AURA) and not permanent.hasType(Subtype.EQUIPTMENT):
-                        unattach(game, permanent, permanent.getAttached())
+                        gameActions.unattach(
+                            game, permanent, permanent.getAttached())
                         sbaTaken = True
                     elif permanent.hasType(Subtype.SAGA):
                         if permanent.counters[Counter.LORE] >= permanent.finalChapter:
@@ -156,22 +166,22 @@ def checkSBA(game):
     for cards in legendRuled:
         diedToSBA.add(enactLegendRule(game, cards))
 
-    for card in cardsToBeSacrificed:
-        if not isReplaced(game, fieldToGrave, card):
-            evaluate(game, sacrifice, COD.SBA, card)
-    for card in diedToSBA:
-        if not isReplaced(game, fieldToGrave, card):
-            evaluate(game, dies, card)
-    for card in cardsToBeDestroyed:
-        if not isReplaced(game, fieldToGrave, card):
-            evaluate(game, destroy, card)
+    # for card in cardsToBeSacrificed:
+    #     if not isReplaced(game, fieldToGrave, card):
+    #         evaluate(game, sacrifice, COD.SBA, card)
+    # for card in diedToSBA:
+    #     if not isReplaced(game, fieldToGrave, card):
+    #         evaluate(game, dies, card)
+    # for card in cardsToBeDestroyed:
+    #     if not isReplaced(game, fieldToGrave, card):
+    #         evaluate(game, destroy, card)
 
-    for card in cardsToBeSacrificed:
-        evaluate(game, fieldToGrave, card)
-    for card in cardsToBeDestroyed:
-        evaluate(game, fieldToGrave, card)
-    for card in diedToSBA:
-        evaluate(game, fieldToGrave, card)
+    # for card in cardsToBeSacrificed:
+    #     evaluate(game, fieldToGrave, card)
+    # for card in cardsToBeDestroyed:
+    #     evaluate(game, fieldToGrave, card)
+    # for card in diedToSBA:
+    #     evaluate(game, fieldToGrave, card)
 
 
 def verifyLegendStatus(game, player):
@@ -205,7 +215,7 @@ def addCosts(game, obj, mainCost, additionalCosts):
     Returns:
         totalCost(Cost): The combined costs and discounts of everything 
     """
-    totalCost = Cost()
+    totalCost = gameElements.Cost()
     totalMana = {}
 
     if isinstance(mainCost, dict):
@@ -248,9 +258,31 @@ def addCosts(game, obj, mainCost, additionalCosts):
 
 async def doAction(game, player):
     # waits for the player to make a choice
+    player.passed = False
+    player.chosenAction = None
+    game.waitingOn = player
 
-    while player.chosenAction == None:
-        await asyncio.sleep(0)
+    game.notify("Take Action", {}, player)
+
+    while True:
+        while player.chosenAction == None and player.passed == False:
+            await asyncio.sleep(0)
+
+        if player.passed:
+            break
+        else:
+            choice = player.chosenAction
+            if choice[0] == 'C':
+                card = game.allCards[choice]
+                if card.hasType(Type.LAND):
+                    gameActions.evaluate(
+                        game, gameActions.playLand, card, player)
+                else:
+                    declareCast(game, choice, player)
+            elif choice[0] == 'A':
+                declareActivation(game, choice)
+
+        player.chosenAction = None
 
 
 async def askBinaryQuestion(game, msg, player):
@@ -274,7 +306,7 @@ def declareCast(game, instanceID, player):
     mainCost = None
     addedCosts = None
 
-    result = Effect(card)
+    result = gameElements.Effect(card)
 
     # Used for modal spells
     if card.isModal:
@@ -334,18 +366,18 @@ def declareCast(game, instanceID, player):
             card.property[costType] = True
 
     # Evaluate cast
-    evaluate(game, cast, card)
+    gameActions.evaluate(game, gameActions.cast, card)
 
 
-async def declareActivation(game, abilityID):
+def declareActivation(game, abilityID):
     ability = game.GAT[abilityID]
-    result = Effect()
+    result = gameElements.Effect()
     result.effect = ability.effect.copy()
     result.sourceAbility = ability
     result.sourceCard = ability.source
     result.cost = addCosts(game, ability, ability.cost[0], ability.cost[1])
     result.rulesText = ability.rulesText
-    await evaluate(game, activateAbility, result)
+    gameActions.evaluate(game, gameActions.activateAbility, result)
 
 
 def decideSplice(card):

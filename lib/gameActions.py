@@ -1,14 +1,13 @@
 from time import sleep
 from enumeratedTypes import *
-from movingZones import deckToHand, deckToGrave, fieldToGrave, handToField
 
 
-def play():
+def play(game, card):
     pass
 
 
-def playLand(game, card):
-    evaluate(game, handToField, card)
+def playLand(game, card, player):
+    evaluate(game, moveToZone, card, Zone.FIELD, None)
 
 
 def cast(game, card):
@@ -89,7 +88,7 @@ def drawCard(game, player):
         None
     """
     card = player.getTopOfDeck()
-    evaluate(game, deckToHand, card)
+    evaluate(game, moveToZone, card, Zone.HAND, None)
 
 
 def drawCards(game, player, numToDraw):
@@ -118,7 +117,7 @@ def mill(game, player):
         None
     """
     card = player.getTopOfDeck()
-    evaluate(game, deckToGrave, card)
+    evaluate(game, moveToZone, card, Zone.GRAVE, None)
 
 
 def millCards(game, player, numToMill):
@@ -190,19 +189,7 @@ def tap(game, card):
     """
     card.tapped = True
 
-    msg = {
-        "type": "State Update",
-        "data": {
-            "cards": [{
-                "instanceID": card.instanceID,
-                "type": "Tap",
-                "data": {}
-            }],
-            "players": []
-        }
-    }
-
-    game.notifyAll(msg)
+    game.notifyAll("Tap", card.instanceID)
 
 
 def tapCards(game, cardsToTap):
@@ -231,7 +218,7 @@ def sacrifice(game, source, target):
         None
     """
     evaluate(game, dies, game, target)
-    evaluate(game, fieldToGrave, source, target)
+    evaluate(game, moveToZone, target, Zone.GRAVE, None)
 
 
 def sacrificeCards(game, cardsToSacrifice):
@@ -249,7 +236,7 @@ def destroy(game, source, target):
     Returns:
         None
     """
-    evaluate(game, fieldToGrave, target)
+    evaluate(game, moveToZone, target, Zone.GRAVE, None)
 
 
 def destroyCards(game, source, cardsToBeDestroyed):
@@ -396,21 +383,7 @@ def addMana(game, player, color, amount):
     for color in player.manaPool:
         total += player.manaPool[color]
 
-    msg = {
-        "type": "State Update",
-        "data": {
-            "cards": [],
-            "players": [{
-                "playerID": player.playerID,
-                "type": "Mana Update",
-                "data": {
-                    "num": total
-                }
-            }]
-        }
-    }
-
-    game.notifyAll(msg)
+    game.notifyAll("Add Mana", {"playerID": player.playerID, "num": total})
 
 
 def attach(game, source, target):
@@ -458,6 +431,77 @@ def discardHand(game, player):
 
 
 def discardToHandSize(game, player):
+    pass
+
+
+def moveToZone(game, card, newZoneName, indexFromTop):
+    oldZoneName = str(card.currentZone)
+    if card.currentZone == Zone.STACK or card.currentZone == Zone.FIELD:
+        oldZone = game.zones[card.currentZone]
+    else:
+        oldZone = game.zones[card.controller][card.currentZone]
+
+    if newZoneName == Zone.STACK or newZoneName == Zone.FIELD:
+        newZone = game.zones[newZoneName]
+    elif newZoneName == Zone.DECK:
+        newZone = game.zones[card.controller][Zone.DECK]
+    else:
+        newZone = game.zones[card.controller][newZoneName]
+
+    card.reset()
+    oldZone.remove(card)
+
+    if newZone == Zone.DECK:
+        newZone.insert(indexFromTop, card)
+    elif isinstance(newZone, list):
+        newZone.append(card)
+    else:
+        newZone.add(card)
+    card.currentZone = newZoneName
+    game.applyModifiers(card)
+
+    game.notifyAll("Remove Object", card.instanceID)
+
+    abilities = [[ability.abilityID, ability.rulesText]
+                 for ability in card.abilities if (newZoneName in ability.allowedZones)]
+    types = [str(typ) for typ in card.cardTypes]
+
+    msg2 = {
+        "instanceID": card.instanceID,
+        "name": card.name,
+        "oracle": card.oracle,
+        "memID": card.memID,
+        "power": card.power,
+        "toughness": card.toughness,
+        "controller": card.controller.playerID,
+        "abilities": abilities,
+        "types": types,
+        "zone": str(newZoneName)
+    }
+
+    if oldZoneName == Zone.HAND or oldZoneName == Zone.EXILE or oldZoneName == Zone.GRAVE or oldZoneName == Zone.DECK:
+        msg3 = {
+            "playerID": card.controller.playerID,
+            "type": oldZoneName,
+            "num": len(oldZone)
+        }
+        game.notifyAll("Zone Count", msg3)
+
+    if newZoneName == Zone.HAND or newZoneName == Zone.EXILE or newZoneName == Zone.GRAVE or newZoneName == Zone.DECK:
+        msg4 = {
+            "playerID": card.controller.playerID,
+            "type": str(newZoneName),
+            "num": len(newZone)
+        }
+        game.notifyAll("Zone Count", msg4)
+
+    if newZoneName == Zone.HAND or newZoneName == Zone.DECK:
+        game.notify("New Object", msg2, card.controller)
+    else:
+        game.notifyAll("New Object", msg2)
+
+
+def gainControl(game, card, newController):
     pass
 
 
