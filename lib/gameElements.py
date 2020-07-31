@@ -89,16 +89,15 @@ class Card():
         self.oracle = oracle
         self.instanceID = "C-" + str(uuid1())
         self.memID = "M-" + str(uuid1())
-        game.allCards[self.instanceID] = self
 
         self.cardTypes = set()
         self.colors = set()
 
         self.cmc = None
-        self.manaCost = None  # Mana symbols on the card
-
-        self.mainCosts = []  # [types  ex. "Flashback", cost, indexOfEffect usually 0]
+        self.manaCost = {}  # Mana symbols on the card
+        self.alternativeCosts = []  # [types  ex. "Flashback", cost, indexOfEffect usually 0]
         self.additionalCosts = []  # [types, cost, indexOfEffect]
+        self.cost = None
 
         self.effect = None  # Cleared on reset
 
@@ -153,6 +152,8 @@ class Card():
         self.isBlocking = False
         self.blocking = None
 
+        game.allCards[self.instanceID] = self
+
     def getCardTypes(self):
         return self.cardTypes
 
@@ -166,6 +167,14 @@ class Card():
         if kind not in self.cardTypes:
             return False
         return True
+
+    def isPermanent(self):
+        if self.hasType(Type.CREATURE) or self.hasType(Type.ENCHANTMENT) or self.hasType(Type.ARTIFACT) or self.hasType(Type.LAND):
+            return True
+        return False
+
+    def getCMC(self):
+        pass
 
     def addCharacteristic(self, layer, item):
         self.characteristics[layer].append(item)
@@ -317,7 +326,8 @@ class Game():
         self.winners = []
 
     def getCard(self, instanceID):
-        pass
+        if instanceID in self.allCards:
+            return self.allCards[instanceID]
 
     def AddZone(self, zoneController, zoneType, zoneObject):
         if zoneController not in self.zones:
@@ -338,14 +348,18 @@ class Game():
         return None
 
     def resolve(self, obj):
-        for effect in obj.effect:
-            gameActions.evaluate(self, *effect)
+        if isinstance(obj, Card) and obj.isPermanent:
+            gameActions.evaluate(
+                self, gameActions.moveToZone, obj, Zone.FIELD, None)
+        else:
+            for effect in obj.effect:
+                gameActions.evaluate(self, *effect)
 
     def push(self, obj):
         pass
 
     def pop(self):
-
+        self.resolve(self.zones[Zone.STACK][0])
         self.replacedBy = []
         pass
 
@@ -393,7 +407,7 @@ class Game():
             for key in player.cards:
                 result = cards_db.find_one(oracle_id=key)
                 module_ = import_module(result['filepath'])
-                class_ = getattr(module_, result['name'])
+                class_ = getattr(module_, result['name'].replace(" ", ""))
                 for _ in range(player.cards[key]):
                     card = class_(self, player, key)
                     player.deck.append(card)
@@ -586,6 +600,15 @@ class Effect():
 
 class Cost():
     # Only instantiated by addCosts()
+    convert = {
+        ManaType.WHITE: Color.WHITE,
+        ManaType.BLUE: Color.BLUE,
+        ManaType.BLACK: Color.BLACK,
+        ManaType.RED: Color.RED,
+        ManaType.GREEN: Color.GREEN,
+        ManaType.COLORLESS: Color.COLORLESS
+    }
+
     def __init__(self):
         self.manaCost = {}
         self.additional = []
@@ -597,11 +620,16 @@ class Cost():
     def pay(self, game, player):
         # Return True if cost is paid, False otherwise
         if self.manaCost != {}:
-            pass
+            for manaType in self.manaCost:
+                if manaType != ManaType.GENERIC:
+                    player.manaPool[Cost.convert[manaType]
+                                    ] -= self.manaCost[manaType]
+            if ManaType.GENERIC in self.manaCost:
+                player.manaPool[Color.WHITE] -= self.manaCost[ManaType.GENERIC]
         if self.additional != []:
             for cost in self.additional:
                 gameActions.evaluate(game, *cost)
-        return True  # Temporary
+        return True
 
 
 class CostModifier():

@@ -234,7 +234,7 @@ def addCosts(game, obj, mainCost, additionalCosts):
         for cost in mainCost:
             totalCost.additional.append(cost)
 
-    if additionalCosts != None:
+    if additionalCosts != []:
         for addedCost in additionalCosts:
             if isinstance(addedCost, dict):  # Do if the additional cost is a mana payment
                 for manaType in addedCost:
@@ -251,7 +251,7 @@ def addCosts(game, obj, mainCost, additionalCosts):
             else:
                 totalCost.additional.append(addedCost)
 
-    totalCost.manaCost = totalCost
+    totalCost.manaCost = totalMana
 
     return totalCost
 
@@ -298,15 +298,16 @@ async def askBinaryQuestion(game, msg, player):
 
 def declareCast(game, instanceID, player):
     card = game.getCard(instanceID)
-    allEffects = card.effects.copy()  # A copy of all effects on the card
+    allEffects = card.effects.copy()  # copy of all effects on the card
 
-    chosenEffects = []  # Chosen effects
+    chosenMainCost = {}
+    chosenAddedCosts = []
+    chosenEffects = []  # chosen effects
     effectIndexesAdded = []  # indexes of the effects added from allEffects
+    effectTypes = set()  # Effect
 
-    mainCost = None
-    addedCosts = None
-
-    result = gameElements.Effect(card)
+    result = gameElements.Effect()
+    result.sourceCard = card
 
     # Used for modal spells
     if card.isModal:
@@ -328,23 +329,14 @@ def declareCast(game, instanceID, player):
             game, None, player, InquiryType.VARIABLE, 1)
 
     # Choose main cost or alt cost if applicable and add their respective effect
-    if len(card.mainCosts) > 1:
-        c = choose(game, card.mainCosts, player, InquiryType.MAIN_COST, 1)
-        index = c[3]  # index of effect associated with the chosen cost
-        if not (index in effectIndexesAdded):
-            effectIndexesAdded.append(index)
-            chosenEffects.append(allEffects[index])
-        mainCost = c
+    if len(card.alternativeCosts) > 0:
+        pass
     else:
-        mainCost = card.mainCosts[0]
-        index = card.mainCosts[0][3]
-        if not (index in effectIndexesAdded):
-            effectIndexesAdded.append(index)
-            chosenEffects.append(allEffects[index])
+        chosenMainCost = card.manaCost
 
     # Add chosen additional costs and their respective effects
-    addedCosts = choose(game, card.additionalCosts,
-                        player, InquiryType.ADD_COST, None)
+    if len(card.additionalCosts) > 0:
+        pass
 
     # Add all chosen effect to result.effect
     for effect in chosenEffects:
@@ -355,18 +347,16 @@ def declareCast(game, instanceID, player):
         result.rulesText += " " + effect[0]
 
     # Instantiate a cost object with the chosen costs and set it in result.cost
-    result.cost = addCosts(game, card, mainCost[1], [
-                           item[1] for item in addedCosts])
+    card.cost = addCosts(game, card, chosenMainCost, chosenAddedCosts)
 
     # Add cost types to card properties like Flashback
-    for costType in mainCost[0]:
+    for costType in effectTypes:
         card.property[costType] = True
-    for cost in addedCosts:
-        for costType in cost[0]:
-            card.property[costType] = True
 
     # Evaluate cast
-    gameActions.evaluate(game, gameActions.cast, card)
+    if card.cost.canBePaid(game, card.controller):
+        if card.cost.pay(game, card.controller):
+            gameActions.evaluate(game, gameActions.cast, card)
 
 
 def declareActivation(game, abilityID):

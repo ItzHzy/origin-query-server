@@ -11,7 +11,7 @@ def playLand(game, card, player):
 
 
 def cast(game, card):
-    pass
+    evaluate(game, moveToZone, card, Zone.STACK, 0)
 
 
 def activateAbility(game, effect):
@@ -362,7 +362,25 @@ def removeMana(game, player, color, amount):
     Returns:
         None
     """
-    player.manaPool[color] -= amount
+    convert = {
+        ManaType.WHITE: Color.WHITE,
+        ManaType.BLUE: Color.BLUE,
+        ManaType.BLACK: Color.BLACK,
+        ManaType.RED: Color.RED,
+        ManaType.GREEN: Color.GREEN,
+        ManaType.COLORLESS: Color.COLORLESS
+    }
+
+    if color in convert:
+        player.manaPool[convert[color]] -= amount
+    else:
+        player.manaPool[color] -= amount
+
+    total = 0
+    for color in player.manaPool:
+        total += player.manaPool[color]
+
+    game.notifyAll("Add Mana", {"playerID": player.playerID, "num": total})
 
 
 def addMana(game, player, color, amount):
@@ -434,7 +452,7 @@ def discardToHandSize(game, player):
     pass
 
 
-def moveToZone(game, card, newZoneName, indexFromTop):
+def moveToZone(game, card, newZoneName, indexToInsert):
     oldZoneName = str(card.currentZone)
     if card.currentZone == Zone.STACK or card.currentZone == Zone.FIELD:
         oldZone = game.zones[card.currentZone]
@@ -451,12 +469,11 @@ def moveToZone(game, card, newZoneName, indexFromTop):
     card.reset()
     oldZone.remove(card)
 
-    if newZone == Zone.DECK:
-        newZone.insert(indexFromTop, card)
-    elif isinstance(newZone, list):
-        newZone.append(card)
+    if newZoneName == Zone.DECK or newZoneName == Zone.STACK:
+        newZone.insert(indexToInsert, card)
     else:
         newZone.add(card)
+
     card.currentZone = newZoneName
     game.applyModifiers(card)
 

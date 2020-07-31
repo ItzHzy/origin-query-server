@@ -19,16 +19,6 @@ class Placeholder(Enum):
     YOU = auto()
 
 
-class InquiryType(Enum):
-    TARGET = auto()
-    BOOLEAN = auto()
-    REPLACEMENT = auto()
-    MODAL = auto()
-    VARIABLE = auto()
-    MAIN_COST = auto()
-    ADD_COST = auto()
-
-
 class CostType(Enum):
     NORMAL = auto()
     FLASHBACK = auto()
@@ -201,3 +191,5 @@ class Subtype(Enum):
     SCOUT = auto()
     DEVIL = auto()
     HORROR = auto()
+    KNIGHT = auto()
+    HUMAN = auto()

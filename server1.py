@@ -3,34 +3,43 @@ from uuid import uuid1
 import asyncio
 from preload import sio, app, web
 
-hello = []
-
 
 gameListings = {}
 
+users = {}
 
-sidToUser = {}
+
+class User():
+    def __init__(self, name):
+        self.name = name
+        self.game = None
+        self.player = None
+
+
+def findInfo(sid):
+    user = None
+    game = None
+    player = None
+    if sid in users:
+        user = users[sid]
+        game = user.game
+        player = user.player
+
+    return user, game, player
 
 
 creds = {
-    "user": {"pass": "pass", "user_id": "U-91cfe1dc-cbc3-11ea-87d0-0242ac130003"},
-    "user1": {"pass": "pass1", "user_id": "U-ab1973c4-d267-45ce-9e0a-c29f9e238a6f"},
-    "user2": {"pass": "pass2", "user_id": "U-9e9fbd5a-cbc4-11ea-87d0-0242ac130003"}
+    "user": "pass",
+    "user1": "pass1",
+    "user2": "pass2"
 }
-
-
-async def task():
-    while True:
-        while len(hello) == 0:
-            await sio.sleep()
-        await sio.emit(hello.pop(0), broadcast=True)
 
 
 @sio.on('Login')
 async def login(sid, msg):
     if msg["user"] in creds:
-        if creds[msg["user"]]["pass"] == msg["pass"]:
-            sidToUser[sid] = {"name": msg["user"]}
+        if creds[msg["user"]] == msg["pass"]:
+            users[sid] = User(msg["user"])
             await sio.emit("Login Success", {}, sid)
         else:
             await sio.emit("Login Failed", {}, sid)
@@ -40,35 +49,36 @@ async def login(sid, msg):
 
 @sio.on("Show Games")
 async def showGames(sid):
-    if sid in sidToUser:
-        games = []
-        for gameID in gameListings:
-            game = gameListings[gameID]
-            entry = {}
-            entry["gameID"] = game.gameID
-            entry["title"] = game.title
-            entry["numPlayers"] = game.numPlayers
-            entry["status"] = game.status
-            entry["creator"] = game.creator
-            games.append(entry)
-        await sio.emit("Show Games", {"games": games}, sid)
+    games = []
+    for gameID in gameListings:
+        game = gameListings[gameID]
+        entry = {}
+        entry["gameID"] = game.gameID
+        entry["title"] = game.title
+        entry["numPlayers"] = game.numPlayers
+        entry["status"] = game.status
+        entry["creator"] = game.creator
+        games.append(entry)
+    await sio.emit("Show Games", {"games": games}, sid)
 
 
 @sio.on("Create Game")
 async def createGame(sid, msg):
-    user = sidToUser[sid]
+    user, game, player = findInfo(sid)
     gameID = "G-" + str(uuid1())
-    game = gameElements.Game(gameID, msg["title"], int(
-        msg["numPlayers"]), user, "OPEN")
-    gameListings[gameID] = game
-    player = gameElements.Player(gameListings[gameID], user["name"], sid)
-    player.isHost = True
+    g = gameElements.Game(gameID, msg["title"], int(
+        msg["numPlayers"]), user.name, "OPEN")
+    p = gameElements.Player(g, user.name, sid)
+    gameListings[gameID] = g
+    p.isHost = True
+    user.game = g
+    user.player = p
 
     ret_msg = {
         "gameID": gameID,
-        "title": game.title,
+        "title": g.title,
         "numPlayers": msg["numPlayers"],
-        "creator": user["name"],
+        "creator": user.name,
         "status": "OPEN"
     }
 
@@ -77,18 +87,19 @@ async def createGame(sid, msg):
 
 @sio.on("Join Game")
 async def joinGame(sid, msg):
-    user = sidToUser[sid]
+    user, game, player = findInfo(sid)
     gameID = msg["gameID"]
     if gameID in gameListings:
-        game = gameListings[gameID]
-        player = gameElements.Player(gameListings[gameID], user["name"], sid)
-        user["player"] = player
-        game.addPlayerToGame(player)
-        players = [[player.name, player.playerID] for player in game.players]
+        g = gameListings[gameID]
+        p = gameElements.Player(g, user.name, sid)
+        user.game = g
+        user.player = p
+        g.addPlayerToGame(p)
+        players = [[player.name, player.playerID] for player in g.players]
 
         ret_msg = {
             "gameID": gameID,
-            "playerID": player.playerID,
+            "playerID": p.playerID,
             "players": players
         }
 
@@ -99,36 +110,37 @@ async def joinGame(sid, msg):
 
 @sio.on("Choose Deck")
 async def chooseDeck(sid, msg):
-    user = sidToUser[sid]
-    user["player"].cards = msg
+    user, game, player = findInfo(sid)
+    player.cards = msg
 
 
 @sio.on("Ready")
 async def ready(sid):
-    user = sidToUser[sid]
-    game = user["player"].game
+    user, game, player = findInfo(sid)
 
     allReady = True
 
-    user["player"].isReady = True
+    player.isReady = True
 
     for player in game.players:
         if player.isReady == False:
             allReady = False
 
     if allReady and len(game.players) == game.numPlayers:
-        ret_msg = {
-            "numPlayers": game.numPlayers,
-            "players": [[player.playerID, player.name, player.lifeTotal, player.flavorText, player.pfp] for player in game.players]
-        }
+        for player in game.players:
+            ret_msg = {
+                "numPlayers": game.numPlayers,
+                "players": [[p.playerID, p.name, p.lifeTotal, p.flavorText, p.pfp] for p in game.getRelativePlayerList(player)]
+            }
+            asyncio.create_task(sio.emit("Start Game", ret_msg, player.sid))
 
-        await sio.emit("Start Game", ret_msg, room=game.gameID)
+        await asyncio.sleep(0)
         asyncio.create_task(game.run())
 
     else:
         ret_msg = {
-            "gameID": user.currGame.gameID,
-            "playerID": user.currPlayer.playerID
+            "gameID": game.gameID,
+            "playerID": player.playerID
         }
 
         await sio.emit("Ready", ret_msg, room=game.gameID)
@@ -136,13 +148,12 @@ async def ready(sid):
 
 @sio.on("Not Ready")
 async def notReady(sid):
-    user = sidToUser[sid]
-    game = user["player"].game
-    user["player"].isReady = False
+    user, game, player = findInfo(sid)
+    player.isReady = False
 
     ret_msg = {
-        "gameID": user.currGame.gameID,
-        "playerID": user.currPlayer.playerID
+        "gameID": game.gameID,
+        "playerID": player.playerID
     }
 
     await sio.emit("Not Ready", ret_msg, room=game.gameID)
@@ -150,20 +161,20 @@ async def notReady(sid):
 
 @sio.on("Answer Question")
 async def answerQuestion(sid, msg):
-    sidToUser[sid]["player"].answer = msg["answer"]
+    user, game, player = findInfo(sid)
+    player.answer = msg["answer"]
 
 
 @sio.on("Take Action")
 async def takeAction(sid, msg):
-    user = sidToUser[sid]
-    user["player"].chosenAction = msg
+    user, game, player = findInfo(sid)
+    player.chosenAction = msg
 
 
 @sio.on("Pass")
 async def passed(sid):
-    print("called")
-    user = sidToUser[sid]
-    user["player"].passed = True
+    user, game, player = findInfo(sid)
+    player.passed = True
 
 if __name__ == '__main__':
     web.run_app(app, host='localhost', port=2129)
