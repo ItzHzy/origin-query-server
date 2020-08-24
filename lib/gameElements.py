@@ -426,7 +426,7 @@ class Game():
         while not self.won:  # main gameplay loop
             await basicFunctions.doPhaseActions(self)
             passedInSuccession = False
-            while not passedInSuccession:
+            while not passedInSuccession and (self.currPhase != Turn.UNTAP or (self.currPhase == Turn.CLEANUP and self.zones[Zone.STACK] != [])):
                 passedInSuccession = True
                 for player in self.getRelativePlayerList(self.activePlayer):
                     # checkSBA(self)
@@ -622,8 +622,8 @@ class Cost():
         if self.manaCost != {}:
             for manaType in self.manaCost:
                 if manaType != ManaType.GENERIC:
-                    player.manaPool[Cost.convert[manaType]
-                                    ] -= self.manaCost[manaType]
+                    gameActions.evaluate(
+                        game, gameActions.removeMana, player, manaType, self.manaCost[manaType])
             if ManaType.GENERIC in self.manaCost:
                 player.manaPool[Color.WHITE] -= self.manaCost[ManaType.GENERIC]
         if self.additional != []:

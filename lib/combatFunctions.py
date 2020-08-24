@@ -93,12 +93,12 @@ async def chooseAttackers(game, activePlayer):
 
         lst = []
         for index, declaration in enumerate(activePlayer.answer):
-            if declaration[1][0] == "P":
-                attacker = game.allCards(declaration[0])
+            attacker = game.allCards[declaration[0]]
+
+            if declaration[1] == "P":
                 defender = game.findPlayer(declaration[1])
             else:
-                attacker = game.allCards(declaration[0])
-                defender = game.findPlayer(declaration[1])
+                defender = game.allCards[declaration[1]]
 
             lst[index] = [attacker, defender]
 

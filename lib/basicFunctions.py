@@ -309,24 +309,24 @@ def declareCast(game, instanceID, player):
     result = gameElements.Effect()
     result.sourceCard = card
 
-    # Used for modal spells
-    if card.isModal:
-        effectIndexesAdded.append(0)
-        num = card.maxNumOfChoices
-        effectList = []
-        for effect in allEffects[0]:
-            if card.repeatableChoice:
-                for _ in range(num):
-                    effectList.append(effect)
-            else:
-                effectList.append(effect)
-        chosenEffects.append(
-            choose(game, effectList, player, InquiryType.MODAL, effectList.append(effect)))
+    # # Used for modal spells
+    # if card.isModal:
+    #     effectIndexesAdded.append(0)
+    #     num = card.maxNumOfChoices
+    #     effectList = []
+    #     for effect in allEffects[0]:
+    #         if card.repeatableChoice:
+    #             for _ in range(num):
+    #                 effectList.append(effect)
+    #         else:
+    #             effectList.append(effect)
+    #     chosenEffects.append(
+    #         choose(game, effectList, player, InquiryType.MODAL, effectList.append(effect)))
 
-    # Chose what x should be
-    if Keyword.DECLARE_VAR in card.specialTypes:
-        card.property["X"] = choose(
-            game, None, player, InquiryType.VARIABLE, 1)
+    # # Chose what x should be
+    # if Keyword.DECLARE_VAR in card.specialTypes:
+    #     card.property["X"] = choose(
+    #         game, None, player, InquiryType.VARIABLE, 1)
 
     # Choose main cost or alt cost if applicable and add their respective effect
     if len(card.alternativeCosts) > 0:

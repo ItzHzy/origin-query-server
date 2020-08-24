@@ -380,7 +380,7 @@ def removeMana(game, player, color, amount):
     for color in player.manaPool:
         total += player.manaPool[color]
 
-    game.notifyAll("Add Mana", {"playerID": player.playerID, "num": total})
+    game.notifyAll("Mana Update", {"playerID": player.playerID, "num": total})
 
 
 def addMana(game, player, color, amount):
@@ -401,7 +401,7 @@ def addMana(game, player, color, amount):
     for color in player.manaPool:
         total += player.manaPool[color]
 
-    game.notifyAll("Add Mana", {"playerID": player.playerID, "num": total})
+    game.notifyAll("Mana Update", {"playerID": player.playerID, "num": total})
 
 
 def attach(game, source, target):
