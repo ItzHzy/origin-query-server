@@ -129,10 +129,17 @@ async def ready(sid):
 
     if allReady and len(game.players) == game.numPlayers:
         for player in game.players:
-            ret_msg = {
-                "numPlayers": game.numPlayers,
-                "players": [[p.playerID, p.name, p.lifeTotal, p.flavorText, p.pfp] for p in game.getRelativePlayerList(player)]
-            }
+            ret_msg = [{"playerID": p.playerID,
+                        "name": p.name,
+                        "lifeTotal": p.lifeTotal,
+                        "flavorText": p.flavorText,
+                        "profilePic": p.pfp,
+                        "totalMana": 5,
+                        "handCount": 10,
+                        "exileCount": 15,
+                        "graveCount": 15,
+                        "deckCount": 60} for p in game.getRelativePlayerList(player)]
+
             asyncio.create_task(sio.emit("Start Game", ret_msg, player.sid))
 
         await asyncio.sleep(0)

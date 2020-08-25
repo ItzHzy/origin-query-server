@@ -405,7 +405,7 @@ class Game():
         # loop used to setup the player's decks and other setup components
         for player in self.players:  # import cards into player's decks
             for key in player.cards:
-                result = cards_db.find_one(oracle_id=key)
+                result = cards_db.find_one(name=key)
                 module_ = import_module(result['filepath'])
                 class_ = getattr(module_, result['name'].replace(" ", ""))
                 for _ in range(player.cards[key]):
