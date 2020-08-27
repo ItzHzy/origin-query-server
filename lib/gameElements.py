@@ -423,6 +423,8 @@ class Game():
         self.currPhase = Turn.UNTAP
         self.activePlayer = self.players[0]
 
+        # USe try except to check for win
+
         while not self.won:  # main gameplay loop
             await basicFunctions.doPhaseActions(self)
             passedInSuccession = False

@@ -487,6 +487,7 @@ def moveToZone(game, card, newZoneName, indexToInsert):
         "instanceID": card.instanceID,
         "name": card.name,
         "oracle": card.oracle,
+        "tapped": card.tapped,
         "memID": card.memID,
         "power": card.power,
         "toughness": card.toughness,

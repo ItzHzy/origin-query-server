@@ -138,7 +138,9 @@ async def ready(sid):
                         "handCount": 10,
                         "exileCount": 15,
                         "graveCount": 15,
-                        "deckCount": 60} for p in game.getRelativePlayerList(player)]
+                        "deckCount": 60,
+                        "binaryQuestion": None,
+                        "takingAction": False} for p in game.getRelativePlayerList(player)]
 
             asyncio.create_task(sio.emit("Start Game", ret_msg, player.sid))
 
