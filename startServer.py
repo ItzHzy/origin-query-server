@@ -84,6 +84,8 @@ async def createGame(sid, msg):
 
     await sio.emit("Game Created", ret_msg)
 
+    await sio.emit("Force Join Game", gameID, to=sid)
+
 
 @sio.on("Join Game")
 async def joinGame(sid, msg):
@@ -95,12 +97,12 @@ async def joinGame(sid, msg):
         user.game = g
         user.player = p
         g.addPlayerToGame(p)
-        players = [{"name": player.name, "playerID": player.playerID}
+        players = [{"name": player.name, "playerID": player.playerID, "ready": player.isReady}
                    for player in g.players]
 
         ret_msg = {
             "gameID": gameID,
-            "playerID": p.playerID,
+            "title": g.title,
             "players": players
         }
 
@@ -134,11 +136,11 @@ async def ready(sid):
                         "lifeTotal": p.lifeTotal,
                         "flavorText": p.flavorText,
                         "profilePic": p.pfp,
-                        "totalMana": 5,
-                        "handCount": 10,
-                        "exileCount": 15,
-                        "graveCount": 15,
-                        "deckCount": 60,
+                        "totalMana": 0,
+                        "handCount": len(p.hand),
+                        "exileCount": len(p.exile),
+                        "graveCount": len(p.grave),
+                        "deckCount": len(p.deck),
                         "binaryQuestion": None,
                         "takingAction": False} for p in game.getRelativePlayerList(player)]
 
@@ -148,12 +150,7 @@ async def ready(sid):
         asyncio.create_task(game.run())
 
     else:
-        ret_msg = {
-            "gameID": game.gameID,
-            "playerID": player.playerID
-        }
-
-        await sio.emit("Ready", ret_msg, room=game.gameID)
+        await sio.emit("Ready", player.playerID, room=game.gameID)
 
 
 @sio.on("Not Ready")
@@ -161,12 +158,7 @@ async def notReady(sid):
     user, game, player = findInfo(sid)
     player.isReady = False
 
-    ret_msg = {
-        "gameID": game.gameID,
-        "playerID": player.playerID
-    }
-
-    await sio.emit("Not Ready", ret_msg, room=game.gameID)
+    await sio.emit("Not Ready", player.playerID, room=game.gameID)
 
 
 @sio.on("Answer Question")
