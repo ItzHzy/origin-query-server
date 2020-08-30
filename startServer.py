@@ -97,18 +97,29 @@ async def joinGame(sid, msg):
         user.game = g
         user.player = p
         g.addPlayerToGame(p)
-        players = [{"name": player.name, "playerID": player.playerID, "ready": player.isReady}
-                   for player in g.players]
 
-        ret_msg = {
+        players = [{"name": player.name, "playerID": player.playerID,
+                    "ready": player.isReady} for player in g.players]
+
+        ret_msg1 = {
             "gameID": gameID,
-            "title": g.title,
-            "players": players
+            "playerID": p.playerID,
+            "name": p.name,
         }
+
+        await sio.emit("Another Joined Game", ret_msg1, room=gameID)
 
         sio.enter_room(sid, gameID)
 
-        await sio.emit("Joined Game", ret_msg, room=gameID)
+        ret_msg2 = {
+            "gameID": gameID,
+            "title": g.title,
+            "playerID": p.playerID,
+            "name": p.name,
+            "players": players,
+        }
+
+        await sio.emit("You Joined Game", ret_msg2, to=sid)
 
 
 @sio.on("Choose Deck")
@@ -121,36 +132,31 @@ async def chooseDeck(sid, msg):
 async def ready(sid):
     user, game, player = findInfo(sid)
 
-    allReady = True
-
     player.isReady = True
 
+    allReady = True
     for player in game.players:
         if player.isReady == False:
             allReady = False
 
     if allReady and len(game.players) == game.numPlayers:
-        for player in game.players:
-            ret_msg = [{"playerID": p.playerID,
-                        "name": p.name,
-                        "lifeTotal": p.lifeTotal,
-                        "flavorText": p.flavorText,
-                        "profilePic": p.pfp,
-                        "totalMana": 0,
-                        "handCount": len(p.hand),
-                        "exileCount": len(p.exile),
-                        "graveCount": len(p.grave),
-                        "deckCount": len(p.deck),
-                        "binaryQuestion": None,
-                        "takingAction": False} for p in game.getRelativePlayerList(player)]
 
-            asyncio.create_task(sio.emit("Start Game", ret_msg, player.sid))
+        for player in game.players:
+            ret_msg = {
+                "gameID": game.gameID,
+                "relativePlayerList": [player.playerID for player in game.getRelativePlayerList(player)]
+            }
+            asyncio.create_task(sio.emit("Start Game", ret_msg, to=player.sid))
 
         await asyncio.sleep(0)
-        asyncio.create_task(game.run())
+        await game.run()
 
     else:
-        await sio.emit("Ready", player.playerID, room=game.gameID)
+        ret_msg = {
+            "gameID": game.gameID,
+            "playerID": player.playerID
+        }
+        await sio.emit("Ready", ret_msg, room=game.gameID)
 
 
 @sio.on("Not Ready")
@@ -158,7 +164,11 @@ async def notReady(sid):
     user, game, player = findInfo(sid)
     player.isReady = False
 
-    await sio.emit("Not Ready", player.playerID, room=game.gameID)
+    ret_msg = {
+        "gameID": game.gameID,
+        "playerID": player.playerID
+    }
+    await sio.emit("Not Ready", ret_msg, room=game.gameID)
 
 
 @sio.on("Answer Question")

@@ -189,7 +189,11 @@ def tap(game, card):
     """
     card.tapped = True
 
-    game.notifyAll("Tap", card.instanceID)
+    game.notifyAll("Tap", {
+        "gameID": game.gameID,
+        "controller": card.controller.playerID,
+        "instanceID": card.instanceID
+    })
 
 
 def tapCards(game, cardsToTap):
@@ -477,13 +481,18 @@ def moveToZone(game, card, newZoneName, indexToInsert):
     card.currentZone = newZoneName
     game.applyModifiers(card)
 
-    game.notifyAll("Remove Object", card.instanceID)
+    game.notifyAll("Remove Object", {
+        "gameID": game.gameID,
+        "controller": card.controller.playerID,
+        "instanceID": card.instanceID,
+        "zone": oldZoneName})
 
     abilities = [[ability.abilityID, ability.rulesText]
                  for ability in card.abilities if (newZoneName in ability.allowedZones)]
     types = [str(typ) for typ in card.cardTypes]
 
     msg2 = {
+        "gameID": game.gameID,
         "instanceID": card.instanceID,
         "name": card.name,
         "oracle": card.oracle,

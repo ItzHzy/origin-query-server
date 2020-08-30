@@ -262,7 +262,7 @@ async def doAction(game, player):
     player.chosenAction = None
     game.waitingOn = player
 
-    game.notify("Take Action", {}, player)
+    game.notify("Take Action", game.gameID, player)
 
     while True:
         while player.chosenAction == None and player.passed == False:
@@ -287,7 +287,7 @@ async def doAction(game, player):
 
 async def askBinaryQuestion(game, msg, player):
     player.answer = None
-    game.notify("Binary Question", msg, player)
+    game.notify("Binary Question", {"gameID": game.gameID, "msg": msg}, player)
 
     try:
         while player.answer == None:
