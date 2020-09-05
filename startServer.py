@@ -144,7 +144,8 @@ async def ready(sid):
         for player in game.players:
             ret_msg = {
                 "gameID": game.gameID,
-                "relativePlayerList": [player.playerID for player in game.getRelativePlayerList(player)]
+                "relativePlayerList": [player.playerID for player in game.getRelativePlayerList(player)],
+                "opponentsList": [{"name": opponent.name, "playerID": opponent.playerID} for opponent in game.getOpponents(player)]
             }
             asyncio.create_task(sio.emit("Start Game", ret_msg, to=player.sid))
 
@@ -187,6 +188,13 @@ async def takeAction(sid, msg):
 async def passed(sid):
     user, game, player = findInfo(sid)
     player.passed = True
+
+
+@sio.on("Declare Attacker")
+async def declareAttacker(sid):
+    user, game, player = findInfo(sid)
+    player.declarations !=
+
 
 if __name__ == '__main__':
     web.run_app(app, host='localhost', port=2129)

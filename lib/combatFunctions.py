@@ -84,8 +84,9 @@ def dealNonCombatDamage(game, source, target, amountToDeal):
 async def chooseAttackers(game, activePlayer):
     while True:
         activePlayer.answer = None
+        activePlayer.declarations = []
 
-        game.notify("Choose Attacks", {}, activePlayer)
+        game.notify("Choose Attacks", game.gameID, activePlayer)
         await asyncio.sleep(0)
 
         while activePlayer.answer == None:
@@ -95,14 +96,14 @@ async def chooseAttackers(game, activePlayer):
         for index, declaration in enumerate(activePlayer.answer):
             attacker = game.allCards[declaration[0]]
 
-            if declaration[1] == "P":
+            if declaration[1][0] == "P":
                 defender = game.findPlayer(declaration[1])
             else:
                 defender = game.allCards[declaration[1]]
 
             lst[index] = [attacker, defender]
 
-        if declareAttackers(game, lst):
+        if len(lst) > 0 and declareAttackers(game, lst):
             return
 
 
@@ -110,7 +111,7 @@ async def chooseBlockers(game, player):
     while True:
         player.answer = None
 
-        game.notify("Choose Blocks", {}, player)
+        game.notify("Choose Blocks", game.gameID, player)
         await asyncio.sleep(0)
 
         while player.answer == None:

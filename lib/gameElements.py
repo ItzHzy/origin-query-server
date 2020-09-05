@@ -391,6 +391,13 @@ class Game():
 
         return lst
 
+    def getOpponents(self, chosenPlayer):
+        opponents = []
+        for player in self.players:
+            if player != chosenPlayer:
+                opponents.append(player)
+        return opponents
+
     def addKeywordAbility(self, keyword):
         # Complete in __init__ for ability
         pass
