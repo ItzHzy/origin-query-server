@@ -191,7 +191,6 @@ def tap(game, card):
 
     game.notifyAll("Tap", {
         "gameID": game.gameID,
-        "controller": card.controller.playerID,
         "instanceID": card.instanceID
     })
 
@@ -566,6 +565,7 @@ def beginPhase(game, activePlayer, phase):
         "activePlayer": activePlayer.playerID,
         "phase": str(phase)
     }
+
     game.notifyAll("Start Phase", msg)
 
 
