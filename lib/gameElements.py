@@ -311,7 +311,7 @@ class Game():
         self.allCards = {}
         self.GAT = {}  # Global Ability Table
         self.GMT = {}  # Global Modifier Table
-        self.COMBAT_MATRIX = []
+        self.COMBAT_MATRIX = {}
         self.costModifiers = []
         self.trackers = []
 
@@ -319,6 +319,7 @@ class Game():
         self.currPhase = None
         self.priority = None
         self.waitingOn = None
+        self.passedInSuccession = False
 
         self.replacedBy = []
 
@@ -430,21 +431,17 @@ class Game():
         self.currPhase = Turn.UNTAP
         self.activePlayer = self.players[0]
 
-        # USe try except to check for win
+        # Use try except to check for win
 
         while not self.won:  # main gameplay loop
             await basicFunctions.doPhaseActions(self)
-            passedInSuccession = False
-            while not passedInSuccession and (self.currPhase != Turn.UNTAP or (self.currPhase == Turn.CLEANUP and self.zones[Zone.STACK] != [])):
-                passedInSuccession = True
+            self.passedInSuccession = False
+            while not self.passedInSuccession and (self.currPhase != Turn.UNTAP or (self.currPhase == Turn.CLEANUP and self.zones[Zone.STACK] != [])):
+                self.passedInSuccession = True
                 for player in self.getRelativePlayerList(self.activePlayer):
                     # checkSBA(self)
                     basicFunctions.givePriority(self, player)
-
-                    if await basicFunctions.askBinaryQuestion(self, "Take Action?", player):
-                        passedInSuccession = False
-                        while not player.passed:
-                            await basicFunctions.doAction(self, player)
+                    await basicFunctions.doAction(self, player)
 
             if self.zones[Zone.STACK] != []:
                 self.pop()

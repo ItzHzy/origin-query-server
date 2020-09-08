@@ -618,8 +618,14 @@ def isLegal(*args):
         None
     """
     game = args[0]
-    rules = game.LE["Rules"][args[1].__name__]
-    allowances = game.LE["Allowances"][args[1].__name__]
+    try:
+        rules = game.LE["Rules"][args[1].__name__]
+    except:
+        rules = []
+    try:
+        allowances = game.LE["Allowances"][args[1].__name__]
+    except:
+        allowances = []
 
     someSet = set()
     for rule in rules:

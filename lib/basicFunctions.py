@@ -69,6 +69,9 @@ def goToNextPhase(game):
         gameActions.evaluate(game, gameActions.beginPhase,
                              activePlayer, currPhase)
 
+    elif currPhase == Turn.DECLARE_ATTACKS and game.COMBAT_MATRIX == {}:
+        gameActions.evaluate(game, gameActions.beginPhase,
+                             activePlayer, Turn.END_COMBAT)
     else:
         gameActions.evaluate(game, gameActions.beginPhase, activePlayer,
                              nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
@@ -77,6 +80,10 @@ def goToNextPhase(game):
 def givePriority(game, player):
     # checkSBA(game)
     game.priority = player
+
+    game.notify("Give Priority", {
+        "gameID": game.gameID
+    }, player)
 
 
 def checkSBA(game):
@@ -262,15 +269,19 @@ async def doAction(game, player):
     player.chosenAction = None
     game.waitingOn = player
 
-    game.notify("Take Action", game.gameID, player)
-
     while True:
         while player.chosenAction == None and player.passed == False:
             await asyncio.sleep(0)
 
         if player.passed:
+
+            game.notify("Lose Priority", {
+                "gameID": game.gameID
+            }, player)
+
             break
         else:
+            game.passedInSuccession = False
             choice = player.chosenAction
             if choice[0] == 'C':
                 card = game.allCards[choice]

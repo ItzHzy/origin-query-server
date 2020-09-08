@@ -92,34 +92,30 @@ async def joinGame(sid, msg):
     user, game, player = findInfo(sid)
     gameID = msg
     if gameID in gameListings:
-        g = gameListings[gameID]
-        p = gameElements.Player(g, user.name, sid)
-        user.game = g
-        user.player = p
-        g.addPlayerToGame(p)
-
-        players = [{"name": player.name, "playerID": player.playerID,
-                    "ready": player.isReady} for player in g.players]
-
-        ret_msg1 = {
-            "gameID": gameID,
-            "playerID": p.playerID,
-            "name": p.name,
-        }
-
-        await sio.emit("Another Joined Game", ret_msg1, room=gameID)
+        joinedGame = gameListings[gameID]
+        joiningPlayer = gameElements.Player(joinedGame, user.name, sid)
+        user.game = joinedGame
+        user.player = joiningPlayer
+        joinedGame.addPlayerToGame(joiningPlayer)
 
         sio.enter_room(sid, gameID)
 
-        ret_msg2 = {
-            "gameID": gameID,
-            "title": g.title,
-            "playerID": p.playerID,
-            "name": p.name,
-            "players": players,
-        }
+        for player in joinedGame.players:
 
-        await sio.emit("You Joined Game", ret_msg2, to=sid)
+            ret_msg = {
+                "gameID": joinedGame.gameID,
+                "title": joinedGame.title,
+                "isJoiningPlayer": player == joiningPlayer,
+                "playerID": player.playerID,
+                "name": player.name,
+                "playerInfo": [{"playerID": player.playerID,
+                                "name": player.name,
+                                "isReady": player.isReady} for player in joinedGame.getRelativePlayerList(player)],
+                "orderedPlayerList": [player.playerID for player in joinedGame.getRelativePlayerList(player)]
+            }
+
+            asyncio.create_task(
+                sio.emit("Player Joined Game", ret_msg, to=player.sid))
 
 
 @sio.on("Choose Deck")
@@ -140,15 +136,7 @@ async def ready(sid):
             allReady = False
 
     if allReady and len(game.players) == game.numPlayers:
-
-        for player in game.players:
-            ret_msg = {
-                "gameID": game.gameID,
-                "playerList": [player.playerID for player in game.getRelativePlayerList(player)]
-            }
-            asyncio.create_task(sio.emit("Start Game", ret_msg, to=player.sid))
-
-        await asyncio.sleep(0)
+        await sio.emit("Start Game", game.gameID, room=game.gameID)
         await game.run()
 
     else:
@@ -189,10 +177,16 @@ async def passed(sid):
     player.passed = True
 
 
-# @sio.on("Declare Attacker")
-# async def declareAttacker(sid):
-#     user, game, player = findInfo(sid)
-#     player.declarations !=
+@sio.on("Declare Attacks")
+async def declareAttacks(sid, msg):
+    user, game, player = findInfo(sid)
+    player.answer = msg
+
+
+@sio.on("Declare Blocks")
+async def declareBlocks(sid, msg):
+    user, game, player = findInfo(sid)
+    player.answer = msg
 
 
 if __name__ == '__main__':

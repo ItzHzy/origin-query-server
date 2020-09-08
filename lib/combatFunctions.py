@@ -84,26 +84,26 @@ def dealNonCombatDamage(game, source, target, amountToDeal):
 async def chooseAttackers(game, activePlayer):
     while True:
         activePlayer.answer = None
-        activePlayer.declarations = []
 
-        game.notify("Choose Attacks", game.gameID, activePlayer)
+        game.notify("Choose Attacks", {"gameID": game.gameID,
+                                       "legalTargets": [{"playerID": player.playerID, "name": player.name} for player in game.getOpponents(activePlayer)]}, activePlayer)
         await asyncio.sleep(0)
 
         while activePlayer.answer == None:
             await asyncio.sleep(0)
 
-        lst = []
-        for index, declaration in enumerate(activePlayer.answer):
-            attacker = game.allCards[declaration[0]]
+        declaredAttacks = {}
 
-            if declaration[1][0] == "P":
-                defender = game.findPlayer(declaration[1])
+        for attacker in activePlayer.answer:
+
+            if str(activePlayer.answer[attacker])[0] == "P":
+                defender = game.findPlayer(activePlayer.answer[attacker])
             else:
-                defender = game.allCards[declaration[1]]
+                defender = game.allCards[activePlayer.answer[attacker]]
 
-            lst[index] = [attacker, defender]
+            declaredAttacks[game.allCards[attacker]] = defender
 
-        if len(lst) > 0 and declareAttackers(game, lst):
+        if declareAttackers(game, declaredAttacks):
             return
 
 
@@ -128,7 +128,7 @@ async def chooseBlockers(game, player):
             return
 
 
-def declareAttackers(game, listOfAttackers):
+def declareAttackers(game, declaredAttacks):
     """Used to check if all chosen attacks are legal.
        If attacks are legal, set all the attackers as attacking and
        sets the declared defender. Tiggers "on attack" abilities
@@ -144,26 +144,33 @@ def declareAttackers(game, listOfAttackers):
         False if any declared attacks are illegal.
 
     """
-    for declaration in listOfAttackers:
-        if gameActions.isLegal(attack, declaration[0], declaration[1]) != GameRuleAns.ALLOWED:
+
+    # Check if the declared attacks are legal
+    for attacker in declaredAttacks:
+        defender = declaredAttacks[attacker]
+        if not gameActions.isLegal(game, attack, attacker, defender):
             return False
 
-    for declaration in listOfAttackers:
-        if isinstance(declaration[1], gameElements.Player):
-            declaration[1].isDefending = True
+    # Set combat statuses for creatures and players
+    for attacker in declaredAttacks:
+        defender = declaredAttacks[attacker]
+        if isinstance(defender, gameElements.Player):
+            defender.isDefending = True
         else:
-            declaration[1].getController().isDefending = True
-        declaration[0].isAttacking = True
-        declaration[0].attacking = declaration[1]
+            defender.getController().isDefending = True
+        attacker.isAttacking = True
+        attacker.attacking = defender
 
     matrix = game.COMBAT_MATRIX
-    for declaration in listOfAttackers:
-        matrix[declaration[0]] = {
-            "Assignable Damage": calculatePossibleDamage(game, declaration[0]),
+    for attacker in declaredAttacks:
+        defender = declaredAttacks[attacker]
+
+        matrix[attacker] = {
+            "Assignable Damage": calculatePossibleDamage(game, attacker),
             "Blockers": [],
-            "Defender": declaration[1]
+            "Defender": defender
         }
-        gameActions.evaluate(attack, game, declaration[0], declaration[1])
+        gameActions.evaluate(game, attack, attacker, defender)
 
     return True
 
