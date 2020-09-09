@@ -15,12 +15,10 @@ def cast(game, card):
 
 
 def activateAbility(game, effect):
-    if effect.cost.canBePaid(game, effect.sourceCard.controller):
-        if effect.cost.pay(game, effect.sourceCard.controller):
-            if effect.sourceAbility.isManaAbility:
-                game.resolve(effect)
-            else:
-                game.push(effect)
+    if effect.sourceAbility.isManaAbility:
+        game.resolve(effect)
+    else:
+        game.push(effect)
 
 
 def loseLife(game, source, player, amountToLose):
@@ -37,7 +35,13 @@ def loseLife(game, source, player, amountToLose):
     """
     if amountToLose == 0:
         return
-    player.setLife(player.getLife() - amountToLose)
+    player.lifeTotal -= amountToLose
+
+    game.notifyAll("Life Total Update", {
+        "gameID": game.gameID,
+        "playerID": player.playerID,
+        "life": player.lifeTotal
+    })
 
 
 def gainLife(game, source, player, amountToGain):
@@ -54,7 +58,14 @@ def gainLife(game, source, player, amountToGain):
     """
     if amountToGain == 0:
         return
-    player.setLife(player.getLife() + amountToGain)
+
+    player.lifeTotal += amountToGain
+
+    game.notifyAll("Life Total Update", {
+        "gameID": game.gameID,
+        "playerID": player.playerID,
+        "life": player.lifeTotal
+    })
 
 
 def setLife(game, source, player, newTotal):
@@ -391,7 +402,7 @@ def addMana(game, player, color, amount):
 
     Args:
         game (Game): Game Object
-        player(Player): Player to add mana 
+        player(Player): Player to add mana
         color(enumeratedTypes.Color): Color of mana
         amount (Int): Amount of mana to add
 
@@ -413,7 +424,7 @@ def attach(game, source, target):
     Args:
         game (Game): Game Object
         source(Card): The attachment
-        target(Card): The target for the attachment 
+        target(Card): The target for the attachment
 
     Returns:
         None
@@ -427,7 +438,7 @@ def unattach(game, attachment, target):
     Args:
         game (Game): Game Object
         source(Card): The attachment
-        target(Card): The attached card 
+        target(Card): The attached card
 
     Returns:
         None
@@ -505,21 +516,21 @@ def moveToZone(game, card, newZoneName, indexToInsert):
         "zone": str(newZoneName)
     }
 
-    if oldZoneName == Zone.HAND or oldZoneName == Zone.EXILE or oldZoneName == Zone.GRAVE or oldZoneName == Zone.DECK:
-        msg3 = {
+    if oldZoneName == "Zone.HAND" or oldZoneName == "Zone.EXILE" or oldZoneName == "Zone.GRAVE" or oldZoneName == "Zone.DECK":
+        game.notifyAll("Zone Size Update", {
+            "gameID": game.gameID,
             "playerID": card.controller.playerID,
-            "type": oldZoneName,
+            "zoneType": str(oldZoneName),
             "num": len(oldZone)
-        }
-        game.notifyAll("Zone Count", msg3)
+        })
 
     if newZoneName == Zone.HAND or newZoneName == Zone.EXILE or newZoneName == Zone.GRAVE or newZoneName == Zone.DECK:
-        msg4 = {
+        game.notifyAll("Zone Size Update", {
+            "gameID": game.gameID,
             "playerID": card.controller.playerID,
-            "type": str(newZoneName),
+            "zoneType": str(newZoneName),
             "num": len(newZone)
-        }
-        game.notifyAll("Zone Count", msg4)
+        })
 
     if newZoneName == Zone.HAND or newZoneName == Zone.DECK:
         game.notify("New Object", msg2, card.controller)

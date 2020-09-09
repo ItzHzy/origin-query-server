@@ -137,6 +137,7 @@ async def ready(sid):
 
     if allReady and len(game.players) == game.numPlayers:
         await sio.emit("Start Game", game.gameID, room=game.gameID)
+        await game.prep(None)
         await game.run()
 
     else:

@@ -150,7 +150,7 @@ class Card():
         self.isAttacking = False
         self.attacking = None
         self.isBlocking = False
-        self.blocking = None
+        self.blocking = []
 
         game.allCards[self.instanceID] = self
 
@@ -167,6 +167,9 @@ class Card():
         if kind not in self.cardTypes:
             return False
         return True
+
+    def hasKeyword(self, keyword):
+        return keyword in self.abilities
 
     def isPermanent(self):
         if self.hasType(Type.CREATURE) or self.hasType(Type.ENCHANTMENT) or self.hasType(Type.ARTIFACT) or self.hasType(Type.LAND):
@@ -393,11 +396,7 @@ class Game():
         return lst
 
     def getOpponents(self, chosenPlayer):
-        opponents = []
-        for player in self.players:
-            if player != chosenPlayer:
-                opponents.append(player)
-        return opponents
+        return self.getRelativePlayerList(chosenPlayer)[1:]
 
     def addKeywordAbility(self, keyword):
         # Complete in __init__ for ability
@@ -409,7 +408,7 @@ class Game():
     def removePlayerFromGame(self, player):
         self.players.remove(player)
 
-    async def run(self):
+    async def prep(self, rules):
         # loop used to setup the player's decks and other setup components
         for player in self.players:  # import cards into player's decks
             for key in player.cards:
@@ -423,11 +422,28 @@ class Game():
 
             shuffle(player.deck)  # shuffle player's decks
 
+            msg3 = {
+                "gameID": self.gameID,
+                "playerID": player.playerID,
+                "zoneType": "Zone.DECK",
+                "num": len(player.deck)
+            }
+
+            self.notifyAll("Zone Size Update", msg3)
+
+            self.notifyAll("Life Total Update", {
+                "gameID": self.gameID,
+                "playerID": player.playerID,
+                "life": player.lifeTotal
+            })
+
             # each player draws seven cards
             gameActions.drawCards(self, player, 7)
 
         # let the current task sleep so that the messages emitted during setup can go through
         await asyncio.sleep(0)
+
+    async def run(self):
         self.currPhase = Turn.UNTAP
         self.activePlayer = self.players[0]
 
@@ -623,18 +639,38 @@ class Cost():
         # Returns True if the cost can be paid by player, False otherwise
         return True  # Temporary
 
-    def pay(self, game, player):
-        # Return True if cost is paid, False otherwise
+    async def pay(self, game, player):
         if self.manaCost != {}:
-            for manaType in self.manaCost:
-                if manaType != ManaType.GENERIC:
-                    gameActions.evaluate(
-                        game, gameActions.removeMana, player, manaType, self.manaCost[manaType])
-            if ManaType.GENERIC in self.manaCost:
-                player.manaPool[Color.WHITE] -= self.manaCost[ManaType.GENERIC]
+            while True:
+                player.answer = None
+
+                game.notify("Pay Mana", {
+                    "gameID": game.gameID,
+                    "cost": {
+                        "ManaType.WHITE": self.manaCost[ManaType.WHITE] if ManaType.WHITE in self.manaCost else 0,
+                        "ManaType.BLUE": self.manaCost[ManaType.BLUE] if ManaType.BLUE in self.manaCost else 0,
+                        "ManaType.BLACK": self.manaCost[ManaType.BLACK] if ManaType.BLACK in self.manaCost else 0,
+                        "ManaType.RED": self.manaCost[ManaType.RED] if ManaType.RED in self.manaCost else 0,
+                        "ManaType.GREEN": self.manaCost[ManaType.GREEN] if ManaType.GREEN in self.manaCost else 0,
+                        "ManaType.COLORLESS": self.manaCost[ManaType.WHCOLORLESSITE] if ManaType.COLORLESS in self.manaCost else 0,
+                        "ManaType.GENERIC": self.manaCost[ManaType.GENERIC] if ManaType.GENERIC in self.manaCost else 0,
+                    }
+                }, player)
+
+                while player.answer == None:
+                    await asyncio.sleep(0)
+
+                    for manaType in self.manaCost:
+                        if manaType != ManaType.GENERIC:
+                            gameActions.evaluate(
+                                game, gameActions.removeMana, player, manaType, self.manaCost[manaType])
+                    if ManaType.GENERIC in self.manaCost:
+                        player.manaPool[Color.WHITE] -= self.manaCost[ManaType.GENERIC]
+
         if self.additional != []:
             for cost in self.additional:
                 gameActions.evaluate(game, *cost)
+
         return True
 
 

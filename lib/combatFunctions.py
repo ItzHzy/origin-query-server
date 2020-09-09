@@ -51,10 +51,12 @@ def dealDamage(game, source, target, amountToDeal):
     Returns:
         None
     """
+
     if isinstance(target, gameElements.Card):
         markDamage(game, source, target, amountToDeal)
     elif isinstance(target, gameElements.Player):
-        gameActions.loseLife(game, source, target, amountToDeal)
+        gameActions.evaluate(game, gameActions.loseLife,
+                             source, target, amountToDeal)
 
 
 def dealCombatDamage(game, source, target, amountToDeal):
@@ -85,8 +87,13 @@ async def chooseAttackers(game, activePlayer):
     while True:
         activePlayer.answer = None
 
-        game.notify("Choose Attacks", {"gameID": game.gameID,
-                                       "legalTargets": [{"playerID": player.playerID, "name": player.name} for player in game.getOpponents(activePlayer)]}, activePlayer)
+        game.notify("Choose Attacks", {
+            "gameID": game.gameID,
+            "legalTargets": [{
+                    "playerID": player.playerID,
+                    "name": player.name
+                    } for player in game.getOpponents(activePlayer)]
+        }, activePlayer)
         await asyncio.sleep(0)
 
         while activePlayer.answer == None:
@@ -111,20 +118,28 @@ async def chooseBlockers(game, player):
     while True:
         player.answer = None
 
-        game.notify("Choose Blocks", game.gameID, player)
+        game.notify("Choose Blocks", {
+            "gameID": game.gameID,
+            "legalTargets": [{
+                    "instanceID": attacker.instanceID,
+                    "name": attacker.name
+                    } for attacker in game.COMBAT_MATRIX]
+        }, player)
+
         await asyncio.sleep(0)
 
         while player.answer == None:
             await asyncio.sleep(0)
 
-        lst = []
-        for index, declaration in enumerate(player.answer):
-            blocker = game.allCards(declaration[0])
-            blocked = game.allCards(declaration[1])
+        declaredBlocks = {}
+        for blocker in player.answer:
+            declaredBlocks[game.allCards[blocker]] = []
 
-            lst[index] = [blocker, blocked]
+            for blocked in player.answer[blocker]:
+                declaredBlocks[game.allCards[blocker]
+                               ] += game.allCards(blocked)
 
-        if declareBlockers(game, lst):
+        if declareBlockers(game, declaredBlocks):
             return
 
 
@@ -161,21 +176,15 @@ def declareAttackers(game, declaredAttacks):
         attacker.isAttacking = True
         attacker.attacking = defender
 
-    matrix = game.COMBAT_MATRIX
     for attacker in declaredAttacks:
         defender = declaredAttacks[attacker]
 
-        matrix[attacker] = {
-            "Assignable Damage": calculatePossibleDamage(game, attacker),
-            "Blockers": [],
-            "Defender": defender
-        }
         gameActions.evaluate(game, attack, attacker, defender)
 
     return True
 
 
-def declareBlockers(game, listOfBlockers):
+def declareBlockers(game, declaredBlocks):
     """Used to check if all chosen blocks are legal
 
     Args:
@@ -188,18 +197,19 @@ def declareBlockers(game, listOfBlockers):
         False if any declared blocks are illegal.
 
     """
-    for declaration in listOfBlockers:
-        if gameActions.isLegal(block, declaration[0], declaration[1]) != GameRuleAns.ALLOWED:
-            return False
+    for blocker in declaredBlocks:
+        for blocked in declaredBlocks[blocker]:
+            if not gameActions.isLegal(block, blocker, blocked):
+                return False
 
-    for declaration in listOfBlockers:
-        declaration[0].isBlocking = True
-        declaration[0].blocking = declaration[1]
+    for blocker in declaredBlocks:
+        blocker.isBlocking = True
+        for blocked in declaredBlocks[blocker]:
+            blocker.blocking.append(blocked)
 
-    matrix = game.COMBAT_MATRIX
-    for declaration in listOfBlockers:
-        matrix[declaration[0]]["Blockers"].append(declaration[1])
-        gameActions.evaluate(block, game, declaration[0], declaration[1])
+    for blocker in declaredBlocks:
+        for blocked in declaredBlocks[blocker]:
+            gameActions.evaluate(block, game, blocker, blocked)
 
     return True
 
@@ -215,7 +225,11 @@ def attack(game, attacker, defender):
     Returns:
         None
     """
-    pass
+    game.COMBAT_MATRIX[attacker] = {
+        "Assignable Damage": calculatePossibleDamage(game, attacker),
+        "Blockers": [],
+        "Defender": defender
+    }
 
 
 def block(game, blocker, blocked):
@@ -229,41 +243,65 @@ def block(game, blocker, blocked):
     Returns:
         None
     """
-    pass
+    game.COMBAT_MATRIX[blocked]["Blockers"].append(blocker)
 
 
 def resolveCombatMatrix_FS(game):
     matrix = game.COMBAT_MATRIX
 
     for attacker in matrix:
-        blockers = attacker["Blockers"]
-        defender = attacker["Defender"]
-        if attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+        blockers = game.COMBAT_MATRIX[attacker]["Blockers"]
+        defender = game.COMBAT_MATRIX[attacker]["Defender"]
+
+        if blockers != []:
+            if attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+                for blocker in blockers:
+                    damageToDeal = assignDamage(game, attacker, blocker)
+                    if damageToDeal > 0:
+                        gameActions.evaluate(
+                            game, dealCombatDamage, attacker, blocker, damageToDeal)
+
             for blocker in blockers:
-                assignDamage(game, attacker, blocker)
-        for blocker in blockers:
-            if blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
-                gameActions.evaluate(game, dealCombatDamage, blocker, attacker)
-        if attacker["Assignable Damage"] > 0 and attacker.hasKeyword(Keyword.TRAMPLE) and attacker.hasKeyword(Keyword.FIRST_STRIKE):
+                if blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+                    gameActions.evaluate(
+                        game, dealCombatDamage, blocker, attacker, calculatePossibleDamage(game, blocker))
+
+            if game.COMBAT_MATRIX[attacker]["Assignable Damage"] > 0 and attacker.hasKeyword(Keyword.TRAMPLE) and attacker.hasKeyword(Keyword.FIRST_STRIKE):
+                gameActions.evaluate(game, dealCombatDamage, attacker,
+                                     defender, game.COMBAT_MATRIX[attacker]["Assignable Damage"])
+
+        elif attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
             gameActions.evaluate(game, dealCombatDamage, attacker,
-                                 defender, attacker["Assignable Damage"])
+                                 defender, game.COMBAT_MATRIX[attacker]["Assignable Damage"])
 
 
 def resolveCombatMatrix(game):
     matrix = game.COMBAT_MATRIX
 
     for attacker in matrix:
-        blockers = attacker["Blockers"]
-        defender = attacker["Defender"]
-        if not attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+        blockers = game.COMBAT_MATRIX[attacker]["Blockers"]
+        defender = game.COMBAT_MATRIX[attacker]["Defender"]
+
+        if blockers != []:
+            if not attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+                for blocker in blockers:
+                    damageToDeal = assignDamage(game, attacker, blocker)
+                    if damageToDeal > 0:
+                        gameActions.evaluate(
+                            game, dealCombatDamage, attacker, blocker, damageToDeal)
+
             for blocker in blockers:
-                assignDamage(game, attacker, blocker)
-        for blocker in blockers:
-            if not blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
-                gameActions.evaluate(game, dealCombatDamage, blocker, attacker)
-        if attacker["Assignable Damage"] > 0 and attacker.hasKeyword(Keyword.TRAMPLE) and (not blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE)):
+                if not blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
+                    gameActions.evaluate(
+                        game, dealCombatDamage, blocker, attacker, calculatePossibleDamage(game, blocker))
+
+            if game.COMBAT_MATRIX[attacker]["Assignable Damage"] > 0 and attacker.hasKeyword(Keyword.TRAMPLE) and (not blocker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE)):
+                gameActions.evaluate(game, dealCombatDamage, attacker,
+                                     defender, game.COMBAT_MATRIX[attacker]["Assignable Damage"])
+
+        elif not attacker.hasKeyword(Keyword.FIRST_STRIKE) or attacker.hasKeyword(Keyword.DOUBLE_STRIKE):
             gameActions.evaluate(game, dealCombatDamage, attacker,
-                                 defender, attacker["Assignable Damage"])
+                                 defender, game.COMBAT_MATRIX[attacker]["Assignable Damage"])
 
     game.COMBAT_MATRIX = {}
 
@@ -272,19 +310,18 @@ def calculatePossibleDamage(game, card):
     return card.power
 
 
-def assignDamage(game, source, target):
-    matrix = game.COMBAT_MATRIX
-    damageForLethal = target.toughness
-    if matrix[source]["Assignable Damage"] >= damageForLethal:
-        gameActions.evaluate(game, dealCombatDamage,
-                             source, target, damageForLethal)
-    elif matrix[source]["Assignable Damage"] > 0:
-        gameActions.evaluate(game, dealCombatDamage, source, target,
-                             matrix[source]["Assignable Damage"])
-        matrix[source]["Assignable Damage"] = 0
+def assignDamage(game, attacker, defender):
+    damageForLethal = defender.toughness
+    assignedDamage = 0
+    if game.COMBAT_MATRIX[attacker]["Assignable Damage"] >= damageForLethal:
+        game.COMBAT_MATRIX[attacker]["Assignable Damage"] -= damageForLethal
+        return damageForLethal
+    elif game.COMBAT_MATRIX[attacker]["Assignable Damage"] > 0:
+        assignedDamage = game.COMBAT_MATRIX[attacker]["Assignable Damage"]
+        game.COMBAT_MATRIX[attacker]["Assignable Damage"] = 0
+        return assignDamage
 
-    # Has to call dealCombatDamage
-    pass
+    return 0
 
 
 def fight(game, source, target):

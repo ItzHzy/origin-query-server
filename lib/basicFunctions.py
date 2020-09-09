@@ -21,8 +21,8 @@ async def doPhaseActions(game):
     elif currPhase == Turn.DECLARE_ATTACKS:
         await combatFunctions.chooseAttackers(game, activePlayer)
     elif currPhase == Turn.DECLARE_BLOCKS:
-        for player in game.players:
-            if player != activePlayer and player.isDefending:
+        for player in game.getOpponents(activePlayer):
+            if player.isDefending:
                 await combatFunctions.chooseBlockers(game, player)
     elif currPhase == Turn.FIRST_COMBAT_DAMAGE:
         combatFunctions.resolveCombatMatrix_FS(game)
@@ -270,16 +270,18 @@ async def doAction(game, player):
     game.waitingOn = player
 
     while True:
+
+        player.chosenAction = None
         while player.chosenAction == None and player.passed == False:
             await asyncio.sleep(0)
 
         if player.passed:
-
             game.notify("Lose Priority", {
                 "gameID": game.gameID
             }, player)
 
             break
+
         else:
             game.passedInSuccession = False
             choice = player.chosenAction
@@ -289,11 +291,9 @@ async def doAction(game, player):
                     gameActions.evaluate(
                         game, gameActions.playLand, card, player)
                 else:
-                    declareCast(game, choice, player)
+                    await declareCast(game, choice, player)
             elif choice[0] == 'A':
-                declareActivation(game, choice)
-
-        player.chosenAction = None
+                await declareActivation(game, choice)
 
 
 async def askBinaryQuestion(game, msg, player):
@@ -307,7 +307,7 @@ async def askBinaryQuestion(game, msg, player):
         return player.answer
 
 
-def declareCast(game, instanceID, player):
+async def declareCast(game, instanceID, player):
     card = game.getCard(instanceID)
     allEffects = card.effects.copy()  # copy of all effects on the card
 
@@ -370,7 +370,7 @@ def declareCast(game, instanceID, player):
             gameActions.evaluate(game, gameActions.cast, card)
 
 
-def declareActivation(game, abilityID):
+async def declareActivation(game, abilityID):
     ability = game.GAT[abilityID]
     result = gameElements.Effect()
     result.effect = ability.effect.copy()
@@ -378,7 +378,10 @@ def declareActivation(game, abilityID):
     result.sourceCard = ability.source
     result.cost = addCosts(game, ability, ability.cost[0], ability.cost[1])
     result.rulesText = ability.rulesText
-    gameActions.evaluate(game, gameActions.activateAbility, result)
+
+    if result.cost.canBePaid(game, result.sourceCard.controller):
+        if await result.cost.pay(game, result.sourceCard.controller):
+            gameActions.evaluate(game, gameActions.activateAbility, result)
 
 
 def decideSplice(card):
