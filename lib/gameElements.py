@@ -622,14 +622,6 @@ class Effect():
 
 class Cost():
     # Only instantiated by addCosts()
-    convert = {
-        ManaType.WHITE: Color.WHITE,
-        ManaType.BLUE: Color.BLUE,
-        ManaType.BLACK: Color.BLACK,
-        ManaType.RED: Color.RED,
-        ManaType.GREEN: Color.GREEN,
-        ManaType.COLORLESS: Color.COLORLESS
-    }
 
     def __init__(self):
         self.manaCost = {}
@@ -640,32 +632,45 @@ class Cost():
         return True  # Temporary
 
     async def pay(self, game, player):
+
+        convertStringToColorEnum = {
+            "Color.WHITE": Color.WHITE,
+            "Color.BLUE": Color.BLUE,
+            "Color.BLACK": Color.BLACK,
+            "Color.RED": Color.RED,
+            "Color.GREEN": Color.GREEN,
+            "Color.COLORLESS": Color.COLORLESS
+        }
+
         if self.manaCost != {}:
             while True:
                 player.answer = None
 
                 game.notify("Pay Mana", {
                     "gameID": game.gameID,
+                    "status": "PAYING_MANA",
                     "cost": {
+                        "ManaType.GENERIC": self.manaCost[ManaType.GENERIC] if ManaType.GENERIC in self.manaCost else 0,
                         "ManaType.WHITE": self.manaCost[ManaType.WHITE] if ManaType.WHITE in self.manaCost else 0,
                         "ManaType.BLUE": self.manaCost[ManaType.BLUE] if ManaType.BLUE in self.manaCost else 0,
                         "ManaType.BLACK": self.manaCost[ManaType.BLACK] if ManaType.BLACK in self.manaCost else 0,
                         "ManaType.RED": self.manaCost[ManaType.RED] if ManaType.RED in self.manaCost else 0,
                         "ManaType.GREEN": self.manaCost[ManaType.GREEN] if ManaType.GREEN in self.manaCost else 0,
-                        "ManaType.COLORLESS": self.manaCost[ManaType.WHCOLORLESSITE] if ManaType.COLORLESS in self.manaCost else 0,
-                        "ManaType.GENERIC": self.manaCost[ManaType.GENERIC] if ManaType.GENERIC in self.manaCost else 0,
+                        "ManaType.COLORLESS": self.manaCost[ManaType.COLORLESS] if ManaType.COLORLESS in self.manaCost else 0,
                     }
                 }, player)
 
                 while player.answer == None:
                     await asyncio.sleep(0)
 
-                    for manaType in self.manaCost:
-                        if manaType != ManaType.GENERIC:
-                            gameActions.evaluate(
-                                game, gameActions.removeMana, player, manaType, self.manaCost[manaType])
-                    if ManaType.GENERIC in self.manaCost:
-                        player.manaPool[Color.WHITE] -= self.manaCost[ManaType.GENERIC]
+                # TODO: add validation of payment
+
+                for color in player.answer:
+                    if player.answer[color] > 0:
+                        gameActions.evaluate(
+                            game, gameActions.removeMana, player, convertStringToColorEnum[color], player.answer[color])
+
+                break
 
         if self.additional != []:
             for cost in self.additional:

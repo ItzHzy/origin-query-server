@@ -376,25 +376,18 @@ def removeMana(game, player, color, amount):
     Returns:
         None
     """
-    convert = {
-        ManaType.WHITE: Color.WHITE,
-        ManaType.BLUE: Color.BLUE,
-        ManaType.BLACK: Color.BLACK,
-        ManaType.RED: Color.RED,
-        ManaType.GREEN: Color.GREEN,
-        ManaType.COLORLESS: Color.COLORLESS
-    }
 
-    if color in convert:
-        player.manaPool[convert[color]] -= amount
-    else:
-        player.manaPool[color] -= amount
+    player.manaPool[color] -= amount
 
     total = 0
     for color in player.manaPool:
         total += player.manaPool[color]
 
-    game.notifyAll("Mana Update", {"playerID": player.playerID, "num": total})
+    game.notify("Mana Update", {
+        "gameID": game.gameID,
+        "color": str(color),
+        "amount": player.manaPool[color]
+    }, player)
 
 
 def addMana(game, player, color, amount):
@@ -411,11 +404,11 @@ def addMana(game, player, color, amount):
     """
     player.manaPool[color] += amount
 
-    total = 0
-    for color in player.manaPool:
-        total += player.manaPool[color]
-
-    game.notifyAll("Mana Update", {"playerID": player.playerID, "num": total})
+    game.notify("Mana Update", {
+        "gameID": game.gameID,
+        "color": str(color),
+        "amount": player.manaPool[color]
+    }, player)
 
 
 def attach(game, source, target):

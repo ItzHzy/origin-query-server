@@ -366,7 +366,7 @@ async def declareCast(game, instanceID, player):
 
     # Evaluate cast
     if card.cost.canBePaid(game, card.controller):
-        if card.cost.pay(game, card.controller):
+        if await card.cost.pay(game, card.controller):
             gameActions.evaluate(game, gameActions.cast, card)
 
 

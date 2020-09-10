@@ -312,14 +312,13 @@ def calculatePossibleDamage(game, card):
 
 def assignDamage(game, attacker, defender):
     damageForLethal = defender.toughness
-    assignedDamage = 0
     if game.COMBAT_MATRIX[attacker]["Assignable Damage"] >= damageForLethal:
         game.COMBAT_MATRIX[attacker]["Assignable Damage"] -= damageForLethal
         return damageForLethal
     elif game.COMBAT_MATRIX[attacker]["Assignable Damage"] > 0:
         assignedDamage = game.COMBAT_MATRIX[attacker]["Assignable Damage"]
         game.COMBAT_MATRIX[attacker]["Assignable Damage"] = 0
-        return assignDamage
+        return assignedDamage
 
     return 0
 
