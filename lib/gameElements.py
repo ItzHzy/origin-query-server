@@ -305,10 +305,10 @@ class Game():
         self.status = status
 
         self.players = []  # List of all players in a game
-        # Used for tokens or cards that don't exist in a deck normally ex. the back half of a DFC
-        self.blindingEternities = []
-        self.LE = {"Rules": {}, "Allowances": {},
-                   "Triggers": {}, "Replacements": {}}  # Lex Magico
+
+        self.rules = {}  # store all game rules
+        self.triggers = {}  # store all triggers for each action
+        self.replacements = {}  # store all replacment effects
 
         self.zones = {Zone.STACK: [], Zone.FIELD: set()}
         self.allCards = {}
@@ -323,8 +323,6 @@ class Game():
         self.priority = None
         self.waitingOn = None
         self.passedInSuccession = False
-
-        self.replacedBy = []
 
         self.won = False
         self.winners = []
@@ -551,36 +549,6 @@ class GameRule():  # Will return if a action is illegal
         return GameRuleAns.UNKNOWN
 
 
-class GameRuleViolation():
-    def __init__(self, sourceOfViolation, targetFunc, targetArgs):
-        self.sourceOfViolation = sourceOfViolation
-        self.targetFunc = targetFunc
-        self.targetArgs = targetArgs
-
-    def getSource(self):
-        return self.sourceOfViolation
-
-    def getAction(self):
-        return self.targetFunc
-
-    def getArgs(self):
-        return self.targetArgs
-
-
-class GameAllowance():
-    def __init__(self, ruleFunction, source):
-        self.source = None  # AbilityID of source
-        self.ruleFunction = ruleFunction
-
-    def isAllowed(self, targetFunc, targetArgs, gameRuleViolation):
-        if gameRuleViolation == GameRuleAns.UNKNOWN:
-            return GameRuleAns.UNKNOWN
-        elif self.ruleFunction(targetFunc, targetArgs, gameRuleViolation) == GameRuleAns.ALLOWED:
-            return GameRuleAns.ALLOWED
-        else:
-            return gameRuleViolation
-
-
 class ModifierApplier():
     # Chang name to modifier applier
     def __init__(self, modifiersToApply, targetRestriction):
@@ -629,7 +597,8 @@ class Cost():
 
     def canBePaid(self, game, player):
         # Returns True if the cost can be paid by player, False otherwise
-        return True  # Temporary
+        # TODO: implement canBePaid
+        return True
 
     async def pay(self, game, player):
 
@@ -663,7 +632,7 @@ class Cost():
                 while player.answer == None:
                     await asyncio.sleep(0)
 
-                # TODO: add validation of payment
+                # TODO: implement validation of payment
 
                 for color in player.answer:
                     if player.answer[color] > 0:

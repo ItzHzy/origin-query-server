@@ -7,11 +7,12 @@ def play(game, card):
 
 
 def playLand(game, card, player):
-    evaluate(game, moveToZone, card, Zone.FIELD, None)
+    evaluate(game, moveToZone, card=card, newZoneName=Zone.FIELD)
 
 
 def cast(game, card):
-    evaluate(game, moveToZone, card, Zone.STACK, 0)
+    evaluate(game, moveToZone, card=card,
+             newZoneName=Zone.STACK, IndexToInsert=0)
 
 
 def activateAbility(game, effect):
@@ -21,7 +22,7 @@ def activateAbility(game, effect):
         game.push(effect)
 
 
-def loseLife(game, source, player, amountToLose):
+def loseLife(game, player, amountToLose):
     """Set the life total for selected player to (current life - the amount to lose)
 
     Args:
@@ -44,7 +45,7 @@ def loseLife(game, source, player, amountToLose):
     })
 
 
-def gainLife(game, source, player, amountToGain):
+def gainLife(game, player, amountToGain):
     """Set the life total for selected player to (current life + the amount to gain)
 
     Args:
@@ -83,9 +84,11 @@ def setLife(game, source, player, newTotal):
     if player.getLife() == newTotal:
         pass
     elif (player.getLife() > newTotal):
-        evaluate(game, loseLife, player, (player.getLife() - newTotal))
+        evaluate(game, loseLife, player=player,
+                 amountToLose=(player.getLife() - newTotal))
     else:
-        evaluate(game, gainLife, player, (newTotal - player.getLife()))
+        evaluate(game, gainLife, player=player,
+                 amountToGain=(newTotal - player.getLife()))
 
 
 def drawCard(game, player):
@@ -99,7 +102,7 @@ def drawCard(game, player):
         None
     """
     card = player.getTopOfDeck()
-    evaluate(game, moveToZone, card, Zone.HAND, None)
+    evaluate(game, moveToZone, card=card, newZoneName=Zone.HAND)
 
 
 def drawCards(game, player, numToDraw):
@@ -114,7 +117,7 @@ def drawCards(game, player, numToDraw):
         None
     """
     for _ in range(numToDraw):
-        evaluate(game, drawCard, player)
+        evaluate(game, drawCard, player=player)
 
 
 def mill(game, player):
@@ -128,7 +131,7 @@ def mill(game, player):
         None
     """
     card = player.getTopOfDeck()
-    evaluate(game, moveToZone, card, Zone.GRAVE, None)
+    evaluate(game, moveToZone, card=card, newZoneName=Zone.GRAVE)
 
 
 def millCards(game, player, numToMill):
@@ -143,7 +146,7 @@ def millCards(game, player, numToMill):
         None
     """
     for _ in range(numToMill):
-        evaluate(game, mill, player)
+        evaluate(game, mill, player=player)
 
 
 def untap(game, card):
@@ -171,7 +174,7 @@ def untapCards(game, cardsToUntap):
         None
     """
     for card in cardsToUntap:
-        evaluate(game, untap, card)
+        evaluate(game, untap, card=card)
 
 
 def untapAll(game, activePlayer):
@@ -185,7 +188,7 @@ def untapAll(game, activePlayer):
         None
     """
     for card in activePlayer.getField():
-        evaluate(game, untap, card)
+        evaluate(game, untap, card=card)
 
 
 def tap(game, card):
@@ -217,10 +220,10 @@ def tapCards(game, cardsToTap):
         None
     """
     for card in cardsToTap:
-        evaluate(game, tap, card)
+        evaluate(game, tap, card=card)
 
 
-def sacrifice(game, source, target):
+def sacrifice(game, source, card):
     """Sacrifices the target card.
 
     Args:
@@ -231,15 +234,15 @@ def sacrifice(game, source, target):
     Returns:
         None
     """
-    evaluate(game, dies, game, target)
-    evaluate(game, moveToZone, target, Zone.GRAVE, None)
+    evaluate(game, dies, card=card)
+    evaluate(game, moveToZone, card=card, newZoneName=Zone.GRAVE)
 
 
 def sacrificeCards(game, cardsToSacrifice):
     pass
 
 
-def destroy(game, source, target):
+def destroy(game, source, card):
     """Destroy target card.
 
     Args:
@@ -250,7 +253,7 @@ def destroy(game, source, target):
     Returns:
         None
     """
-    evaluate(game, moveToZone, target, Zone.GRAVE, None)
+    evaluate(game, moveToZone, card=card, newZoneName=Zone.GRAVE)
 
 
 def destroyCards(game, source, cardsToBeDestroyed):
@@ -269,16 +272,16 @@ def destroyCards(game, source, cardsToBeDestroyed):
         if isLegal(game, destroy, source, card) and not isReplaced(game, destroy, source, card):
             legalCards.add(card)
     for card in legalCards:
-        evaluate(game, dies, card)
+        evaluate(game, dies, card=card)
     for card in legalCards:
-        evaluate(game, destroy, game, source, card)
+        evaluate(game, destroy, source=source, card=card)
 
 
 def etb(game, card):
     pass
 
 
-def dies(game, target):
+def dies(game, card):
     """Used to trigger "When ~ dies" abilities.
 
     Args:
@@ -459,7 +462,7 @@ def discardToHandSize(game, player):
     pass
 
 
-def moveToZone(game, card, newZoneName, indexToInsert):
+def moveToZone(game, card, newZoneName, indexToInsert=None):
     oldZoneName = str(card.currentZone)
     if card.currentZone == Zone.STACK or card.currentZone == Zone.FIELD:
         oldZone = game.zones[card.currentZone]
@@ -610,168 +613,94 @@ def order(options, player):
     pass
 
 
-def isLegal(*args):
+def isLegal(game, action, **params):
     """Check if a given action and arguments are legal
 
-    Normal Arguments:
-        game (Game): Game Object
-        action(Function): The game action being checked
-        otherArgs(Any): The other arguments for the game action
+    Args:
+        game (Game): Game object
+        action (function): The game action being checked
+        params (dict): The other arguments for the game action
 
     Returns:
-        None
+        Boolean: True if action is legal, false otherwise
     """
-    game = args[0]
-    try:
-        rules = game.LE["Rules"][args[1].__name__]
-    except:
-        rules = []
-    try:
-        allowances = game.LE["Allowances"][args[1].__name__]
-    except:
-        allowances = []
-
-    someSet = set()
-    for rule in rules:
-        x = rule.isLegal(args[2], args[2:])
-        if x != GameRuleAns.ALLOWED:
-            someSet.add((x, None))
-
-    if len(someSet) != 0:
-        for pair in someSet:
-            for allowance in allowances:
-                ans = allowance.isAllowed(args[0], args[1], args[2:], pair[0])
-                if ans == GameRuleAns.ALLOWED:
-                    pair[1] = ans
-                    break
-        for pair in someSet:
-            if pair[1] != GameRuleAns.ALLOWED:
-                return False
+    for rule in game.rules:
+        if not rule.isLegal(action, **params):
+            return False
 
     return True
 
 
-def isReplaced(*args):
+def isReplaced(game, action, **params):
     """Check if a given action and arguments will be replaced
 
-    Normal Arguments:
-        game (Game): Game Object
-        action(Function): The game action being checked
-        otherArgs(Any): The other arguments for the game action
+    Args:
+        game (Game): Game object
+        action (function): The game action being checked
+        params (dict): The other arguments for the game action
 
     Returns:
-        None
+        Boolean: True if action is replaced, false otherwise
     """
-    game = args[0]
-    rules = game.LE["Rules"][args[1].__name__]
-    allowances = game.LE["Allowances"][args[1].__name__]
-    replacements = game.LE["Replacements"][args[1].__name__]
 
-    someSet = set()
-    for rule in rules:
-        x = rule.isLegal(args[2], args[2:])
-        if x != GameRuleAns.ALLOWED:
-            someSet.add((x, None))
-
-    if len(someSet) != 0:
-        for pair in someSet:
-            for allowance in allowances:
-                ans = allowance.isAllowed(args[0], args[1], args[2:], pair[0])
-                if ans == GameRuleAns.ALLOWED:
-                    pair[1] = ans
-                    break
-        for pair in someSet:
-            if pair[1] != GameRuleAns.ALLOWED:
-                return False
-
-    for replacement in replacements:
-        if replacement.isActive() and replacement.getSource() not in game.globalDict["ReplacedBy"] and replacement.getFunc()(args[1], args[2:]):
-            return True
+    for replacement in game.replacements:
+        if replacement.isActive:
+            if replacement.getSource() not in alreadyReplaced:
+                if replacement.isReplaced(action, **params):
+                    return True
 
     return False
 
 
-def evaluate(*args):
+def evaluate(game, action, alreadyReplaced=[], **params):
     """Important method for the engine. Detailed in LexMagico.md
 
-    Normal Arguments:
-        game (Game): Game Object
-        action(Function): The game action being checked
-        otherArgs(Any): The other arguments for the game action
+    Args:
+        game (Game): Game object
+        action (function): The game action being checked
+        alreadyReplaced (list): Holds replacement effects already done, and 
+            passed down recursively to other calls to evalute()
+        params (dict): The other arguments for the game action
 
     Returns:
         None
     """
-    game = args[0]
+
     try:
-        rules = game.LE["Rules"][args[1].__name__]
-    except:
-        rules = []
-    try:
-        allowances = game.LE["Allowances"][args[1].__name__]
-    except:
-        allowances = []
-    try:
-        replacements = game.LE["Replacements"][args[1].__name__]
-    except:
-        replacements = []
-    try:
-        otherTriggers = game.LE["Triggers"][args[1].__name__]
-    except:
-        otherTriggers = []
+        for rule in game.rules:
+            if not rule.isLegal(action, **params):
+                # TODO: return more detailed exception
+                raise Exception("Illegal Action")
+    except Exception as error:
+        print(error)
 
-    someSet = set()
-    for rule in rules:
-        x = rule.isLegal(args[2], args[2:])
-        if x != GameRuleAns.ALLOWED:
-            someSet.add((x, None))
+    else:
+        replacementDone = False
+        for replacement in game.replacements:
+            if replacement.isActive:
+                if replacement.getSource() not in alreadyReplaced:
+                    if replacement.isReplaced(action, **params):
+                        # TODO: implement ordering of replacement effects
+                        replacementDone = True
 
-    if len(someSet) != 0:
-        for pair in someSet:
-            for allowance in allowances:
-                ans = allowance.isAllowed(args[0], args[1], args[2:], pair[0])
-                if ans == GameRuleAns.ALLOWED:
-                    pair[1] = ans
-                    break
-        for pair in someSet:
-            if pair[1] != GameRuleAns.ALLOWED:
-                return GameRuleAns.DENIED
+                        # returns (newAction, newParams)
+                        newAction = replacement.replace(action, **params)
 
-    someOtherSet = set()
-    for replacement in replacements:
-        if replacement.isActive() and replacement.getSource() not in game.replacedBy and replacement.getFunc()(args[1], args[2:]):
-            someOtherSet.add(replacement)
-    if len(someOtherSet) != 0:
-        pass
-        # chosen = choose(game, someOtherSet, game.activePlayer,
-        #                 InquiryType.REPLACEMENT, 1)
-        # game.replacedBy.append(chosen.getSource)
-        # chosen.resolveEffect()
+                        evaluate(game, newAction[0], alreadyReplaced=alreadyReplaced.append(
+                            replacement.getSource()), **newAction[1])
+                        break
 
-    if len(args) == 2:
-        args[1](args[0])
-    elif len(args) == 3:
-        args[1](args[0], args[2])
-    elif len(args) == 4:
-        args[1](args[0], args[2], args[3])
-    elif len(args) == 5:
-        args[1](args[0], args[2], args[3], args[4])
-    elif len(args) == 6:
-        args[1](args[0], args[2], args[3], args[4], args[5])
-    elif len(args) == 7:
-        args[1](args[0], args[2], args[3], args[4], args[5], args[6])
-    elif len(args) == 8:
-        args[1](args[0], args[2], args[3], args[4], args[5], args[6], args[7])
+        if not replacementDone:
+            # Resolve action
+            action(game, **params)
 
-    for tracker in game.trackers:
-        tracker.run()
+            for tracker in game.trackers:
+                # TODO: implement tracker logic
+                tracker.run()
 
-    someThirdSet = set()
-    for trigger in otherTriggers:
-        if trigger.isActive() and trigger.getFunc()(args[1], args[1:]):
-            someThirdSet.add(trigger)
-    for trigger in someThirdSet:
-        player = trigger.getSource().getController()
-        player.awaitingTriggers.append(trigger.getEffect())
+            for trigger in game.triggers:
+                if trigger.isActive:
+                    if trigger.triggers(action, **params):
+                        trigger.getSource().getController().awaitingTriggers.append(trigger.trigger())
 
     return None
