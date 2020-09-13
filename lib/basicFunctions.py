@@ -17,7 +17,7 @@ async def doPhaseActions(game):
     elif currPhase == Turn.UPKEEP:
         gameActions.phaseIn(game, activePlayer)
     elif currPhase == Turn.DRAW:
-        gameActions.evaluate(game, gameActions.drawCard, activePlayer)
+        gameActions.evaluate(game, gameActions.drawCard, player=activePlayer)
     elif currPhase == Turn.DECLARE_ATTACKS:
         await combatFunctions.chooseAttackers(game, activePlayer)
     elif currPhase == Turn.DECLARE_BLOCKS:
@@ -53,28 +53,23 @@ def goToNextPhase(game):
     currPhase = game.currPhase
     activePlayer = game.activePlayer
 
-    gameActions.evaluate(game, gameActions.endPhase, activePlayer, currPhase)
+    gameActions.evaluate(game, gameActions.endPhase, activePlayer=activePlayer, phase=currPhase)
     if currPhase == Turn.CLEANUP and Turn.EXTRA in activePlayer.property and activePlayer.property[Turn.EXTRA] > 0:
         activePlayer.property[Turn.EXTRA] -= 1
-        gameActions.evaluate(game, gameActions.beginPhase,
-                             activePlayer, Turn.UNTAP)
+        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=Turn.UNTAP)
 
     elif currPhase == Turn.CLEANUP:
         nextPlayer = game.getNextPlayer(activePlayer)
-        gameActions.evaluate(game, gameActions.beginPhase,
-                             nextPlayer, Turn.UNTAP)
+        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=nextPlayer, phase=Turn.UNTAP)
 
     elif currPhase in activePlayer.property and activePlayer.property[currPhase] > 0:
         activePlayer.property[currPhase] -= 1
-        gameActions.evaluate(game, gameActions.beginPhase,
-                             activePlayer, currPhase)
+        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=currPhase)
 
     elif currPhase == Turn.DECLARE_ATTACKS and game.COMBAT_MATRIX == {}:
-        gameActions.evaluate(game, gameActions.beginPhase,
-                             activePlayer, Turn.END_COMBAT)
+        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=Turn.END_COMBAT)
     else:
-        gameActions.evaluate(game, gameActions.beginPhase, activePlayer,
-                             nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
+        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
 
 
 def givePriority(game, player):
@@ -243,7 +238,7 @@ def addCosts(game, obj, mainCost, additionalCosts):
 
     if additionalCosts != []:
         for addedCost in additionalCosts:
-            if isinstance(addedCost, dict):  # Do if the additional cost is a mana payment
+            if not 'action' in addedCost:  # Do if the additional cost is a mana payment
                 for manaType in addedCost:
                     amount = mainCost[manaType]
 
@@ -288,8 +283,7 @@ async def doAction(game, player):
             if choice[0] == 'C':
                 card = game.allCards[choice]
                 if card.hasType(Type.LAND):
-                    gameActions.evaluate(
-                        game, gameActions.playLand, card, player)
+                    gameActions.evaluate(game, gameActions.playLand, card=card, player=player)
                 else:
                     await declareCast(game, choice, player)
             elif choice[0] == 'A':
@@ -367,7 +361,7 @@ async def declareCast(game, instanceID, player):
     # Evaluate cast
     if card.cost.canBePaid(game, card.controller):
         if await card.cost.pay(game, card.controller):
-            gameActions.evaluate(game, gameActions.cast, card)
+            gameActions.evaluate(game, gameActions.cast, card=card)
 
 
 async def declareActivation(game, abilityID):
@@ -376,12 +370,13 @@ async def declareActivation(game, abilityID):
     result.effect = ability.effect.copy()
     result.sourceAbility = ability
     result.sourceCard = ability.source
+    print()
     result.cost = addCosts(game, ability, ability.cost[0], ability.cost[1])
     result.rulesText = ability.rulesText
 
     if result.cost.canBePaid(game, result.sourceCard.controller):
         if await result.cost.pay(game, result.sourceCard.controller):
-            gameActions.evaluate(game, gameActions.activateAbility, result)
+            gameActions.evaluate(game, gameActions.activateAbility, effect=result)
 
 
 def decideSplice(card):

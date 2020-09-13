@@ -1,20 +1,49 @@
-from enumeratedTypes import * 
-from combatFunctions import * 
-from gameElements import * 
+from enumeratedTypes import *
+from combatFunctions import *
+from gameElements import *
 from gameActions import *
+
 
 class Plains(Card):
     def __init__(self, game, player, key):
         super(Plains, self).__init__(game, player, key)
 
-        c1 = [{}, [[tap, self]]]
+        # AA: {T}: Add {W}
 
-        e1 = [[addMana, self.controller, Color.WHITE, 1]]
-        
+        # C: {T}
+        c1 = (
+            {},
+            [
+                {
+                    'action': tap,
+                    'card': self
+                }
+            ]
+        )
+        # End
+
+        # E: Add {W}
+        e1 = [
+            {
+                'action': addMana,
+                'player': self.controller,
+                'color': Color.WHITE,
+                'amount': 1
+            }
+        ]
+        # End
+
         r1 = f"{{T}}: Add {{W}}."
+        a1 = ActivatedAbility(game, self, r1, c1, e1, allowedZones={Zone.FIELD}, isManaAbility=True)
+        # End
 
-        a1 = ActivatedAbility(game, self, c1, e1, {Zone.FIELD}, r1, True)
+        self.printed = {
+            "name": "Plains",
+            "power": 0,
+            "toughness": 0,
+            "abilities": [a1],
+            "types": {Supertype.BASIC, Type.LAND, Subtype.PLAINS},
+            "colors": {Color.COLORLESS}
+        }
 
-        self.characteristics[Layer.BASE] = ("Plains", 0, 0, [a1], {Supertype.BASIC, Type.LAND, Subtype.PLAINS}, {Color.COLORLESS})
-
-        self.updateCharacteristics()
+        self.update()

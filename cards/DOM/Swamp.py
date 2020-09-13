@@ -1,20 +1,36 @@
-from enumeratedTypes import * 
-from combatFunctions import * 
-from gameElements import * 
+from enumeratedTypes import *
+from combatFunctions import *
+from gameElements import *
 from gameActions import *
+
 
 class Swamp(Card):
     def __init__(self, game, player, key):
         super(Swamp, self).__init__(game, player, key)
 
-        c1 = [{}, [[tap, self]]]
+        # AA: {T}: Add {B}
 
-        e1 = [[addMana, self.controller, Color.BLACK, 1]]
-        
+        # C: {T}
+        c1 = ({}, [[tap, self]])
+        # End
+
+        # E: Add {B}
+        e1 = [
+            [addMana, self.controller, Color.BLACK, 1]
+        ]
+        # End
+
         r1 = f"{{T}}: Add {{B}}."
+        a1 = ActivatedAbility(game, self, r1, c1, e1, allowedZones={Zone.FIELD}, isManaAbility=True)
+        # End
 
-        a1 = ActivatedAbility(game, self, c1, e1, {Zone.FIELD}, r1, True)
+        self.printed = {
+            "name": "Swamp",
+            "power": 0,
+            "toughness": 0,
+            "abilities": [a1],
+            "types": {Supertype.BASIC, Type.LAND, Subtype.SWAMP},
+            "colors": {Color.COLORLESS}
+        }
 
-        self.characteristics[Layer.BASE] = ("Swamp", 0, 0, [a1], {Supertype.BASIC, Type.LAND, Subtype.SWAMP}, {Color.COLORLESS})
-
-        self.updateCharacteristics()
+        self.update()

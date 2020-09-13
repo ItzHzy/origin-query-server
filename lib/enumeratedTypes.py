@@ -17,6 +17,8 @@ class Placeholder(Enum):
     VARIABLE = auto()
     TARGET = auto()
     YOU = auto()
+    OPPONENTS = auto()
+    ALL_PLAYERS = auto()
 
 
 class CostType(Enum):
@@ -187,9 +189,12 @@ class Subtype(Enum):
     SAGA = auto()
     EQUIPTMENT = auto()
 
+    ARCHER = auto()
+
     GOBLIN = auto()
     SCOUT = auto()
     DEVIL = auto()
     HORROR = auto()
     KNIGHT = auto()
     HUMAN = auto()
+    CONSTRUCT = auto()

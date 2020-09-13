@@ -88,84 +88,67 @@ class Card():
         self.game = game
         self.oracle = oracle
         self.instanceID = "C-" + str(uuid1())
+        self.owner = player
         self.memID = "M-" + str(uuid1())
-
+        self.finalChapter = None
         self.cardTypes = set()
         self.colors = set()
-
-        self.cmc = None
-        self.manaCost = {}  # Mana symbols on the card
-        self.alternativeCosts = []  # [types  ex. "Flashback", cost, indexOfEffect usually 0]
-        self.additionalCosts = []  # [types, cost, indexOfEffect]
-        self.cost = None
-
-        self.effect = None  # Cleared on reset
-
         self.power = None
         self.toughness = None
-
-        self.damageMarked = None
-        self.currentZone = None
-
-        self.owner = player
         self.controller = player
-
-        self.effects = []
+        self.currentZone = None
         self.abilities = []
-        self.characteristics = {
-            Layer.BASE: None,
-            Layer.ONE: [],
-            Layer.TWO: [],
-            Layer.THREE: [],
-            Layer.FOUR: [],
-            Layer.FIVE: [],
-            Layer.SIX: [],
-            Layer.SIX_0: [],
-            Layer.SIX_A: [],
-            Layer.SIX_B: [],
-            Layer.SIX_C: [],
-            Layer.SIX_E: []
-        }
-        self.counters = {}
-        self.property = {}  # Cleared on reset
-        # Does not clear on reset. Used for things like declareVariable
-        self.specialTypes = set()
+        self.counters = {}  # Cleared on reset
+        self.attachedTo = None
 
         self.tapped = False
         self.flipped = False
         self.phasedIn = False
         self.faceUp = False
 
-        self.finalChapter = None
+        self.mainEffect = None
+        self.manaCost = {}  # Mana symbols on the card
+        self.alternativeCosts = []  # [types  ex. "Flashback", cost, indexOfEffect usually 0]
+        self.additionalCosts = []  # [types, cost, indexOfEffect]
 
-        self.attachedTo = None
+        self.cost = None  # Cleared on reset
+        self.effect = None  # Cleared on reset
 
-        self.isModal = False
-        self.maxNumOfChoices = None  # "Choose #"
-        self.repeatableChoice = False  # "You may choose the same mode more than once"
+        self.damageMarked = None
+        self.attacking = None
+        self.blocking = []
 
         self.isCopy = False
         self.isToken = False
 
-        self.isAttacking = False
-        self.attacking = None
-        self.isBlocking = False
-        self.blocking = []
+        self.printed = None
+        self.modifiers = {
+            Layer.ONE: [],
+            Layer.TWO: [],
+            Layer.THREE: [],
+            Layer.FOUR: [],
+            Layer.FIVE: [],
+            Layer.SIX: [],
+            Layer.SIX_A: [],
+            Layer.SIX_B: [],
+            Layer.SIX_C: [],
+            Layer.SIX_E: []
+        }
+
+        self.namedProps = {}  # Cleared on reset
+        self.dynamicProps = set()  # Cleared on reset
 
         game.allCards[self.instanceID] = self
 
-    def getCardTypes(self):
-        return self.cardTypes
+    def hasType(self, kind):
+        if kind not in self.cardTypes:
+            return False
+        return True
 
     def hasTypes(self, types):
         for kind in types:
             if kind not in self.cardTypes:
                 return False
-        return True
-
-    def hasType(self, kind):
-        if kind not in self.cardTypes:
-            return False
         return True
 
     def hasKeyword(self, keyword):
@@ -176,107 +159,102 @@ class Card():
             return True
         return False
 
+    def isHistoric(self):
+        if self.hasType(Supertype.LEGENDARY) or self.hasType(Type.ARTIFACT) or self.hasType(Subtype.SAGA):
+            return True
+        return False
+
     def getCMC(self):
         pass
 
-    def addCharacteristic(self, layer, item):
-        self.characteristics[layer].append(item)
+    def addModifier(self, modifier):
+        self.attributes[modifier["layer"]].append(modifier)
+        self.update()
 
-    def updateCharacteristics(self):
-        self.game.referenceCard = self
-        i = self.characteristics[Layer.BASE]
+    def removeModifier(self, modifier):
+        self.attributes[modifier["layer"]].remove(modifier)
+        self.update()
 
-        self.name = i[0]
-        self.power = i[1]
-        self.toughness = i[2]
-        self.abilities = i[3]
-        self.cardTypes = i[4]
-        self.colors = i[5]
+    def update(self):
+        self.name = self.printed["name"]
+        self.power = self.printed["power"]
+        self.toughness = self.printed["toughness"]
+        self.abilities = self.printed["abilities"]
+        self.cardTypes = self.printed["types"]
+        self.colors = self.printed["colors"]
         self.controller = self.owner
 
-        for i in self.characteristics[Layer.ONE]:
-            self.name = i[0]
-            self.power = i[1]
-            self.toughness = i[2]
-            self.abilities = i[3]
-            self.cardTypes = i[4]
-            self.colors = i[5]
+        for change in self.modifiers[Layer.ONE]:
+            self.name = change["name"]
+            self.power = change["power"]
+            self.toughness = change["toughness"]
+            self.abilities = change["abilities"]
+            self.cardTypes = change["cardTypes"]
+            self.colors = change["colors"]
 
-        self.controller = self.owner
-        for i in self.characteristics[Layer.TWO]:
-            self.controller = i[0]
+        for change in self.modifiers[Layer.TWO]:
+            self.controller = change["player"]
 
-        for i in self.characteristics[Layer.FOUR]:
-            if i[0]:
-                for kind in i[1]:
-                    self.cardTypes.add(kind)
+        for change in self.modifiers[Layer.FOUR]:
+            if change["isSetting"]:
+                self.cardTypes = change["types"]
             else:
-                self.cardTypes = i[1]
+                for cardType in change["types"]:
+                    self.cardTypes.add(cardType)
 
-        for i in self.characteristics[Layer.FIVE]:
-            if i[0]:
-                for color in i[1]:
+        for change in self.modifiers[Layer.FIVE]:
+            if change["isSetting"]:
+                self.colors = change["colors"]
+            else:
+                for color in change["colors"]:
                     self.colors.add(color)
-            else:
-                self.colors = i[1]
 
-        for i in self.characteristics[Layer.SIX]:
-            if i[0]:
-                for ability in i[1]:
+        for change in self.modifiers[Layer.SIX]:
+            if change["isSetting"]:
+                self.abilities = change["abilities"]
+            else:
+                for ability in change["abilities"]:
                     self.abilities.append(ability)
-            else:
-                self.abilities = i[1]
 
-        for i in self.characteristics[Layer.SIX_0]:
-            self.abilities.remove(i[0])
+        for change in self.modifiers[Layer.SIX_A]:
+            self.power = change["powerCDF"](self.game, self)
+            self.toughness = change["toughnessCDF"](self.game, self)
 
-        for i in self.characteristics[Layer.SIX_A]:
-            self.power = i[0](self.game)
-            self.toughness = i[1](self.game)
+        for change in self.modifiers[Layer.SIX_B]:
+            self.power = change["basePower"]
+            self.toughness = change["baseToughness"]
 
-        for i in self.characteristics[Layer.SIX_B]:
-            self.power = i[0]
-            self.toughness = i[1]
+        for change in self.modifiers[Layer.SIX_C]:
+            self.power += change["powerDelta"]
+            self.toughness += change["toughnessDelta"]
 
-        for i in self.characteristics[Layer.SIX_C]:
-            self.power += i[0]
-            self.toughness += i[1]
+        if Counter.P1P1 in self.counters:
+            self.power += self.counters[Counter.P1P1]
+            self.toughness += self.counters[Counter.P1P1]
+        if Counter.M1M1 in self.counters:
+            self.power -= self.counters[Counter.M1M1]
+            self.toughness -= self.counters[Counter.M1M1]
 
-        if self.hasType(Type.CREATURE):
-            if Counter.P1P1 in self.counters:
-                self.power += self.counters[Counter.P1P1]
-                self.toughness += self.counters[Counter.P1P1]
-            if Counter.M1M1 in self.counters:
-                self.power -= self.counters[Counter.M1M1]
-                self.toughness -= self.counters[Counter.M1M1]
-
-        for i in self.characteristics[Layer.SIX_E]:
-            t = self.power
+        for switch in self.modifiers[Layer.SIX_E]:
+            temp = self.power
             self.power = self.toughness
-            self.toughness = t
-
-    def isAttached(self):
-        pass
-
-    def getAttached(self):
-        # Returns attached permanent
-        pass
+            self.toughness = temp
 
     def reset(self):
         self.memID = "M-" + str(uuid1())
         self.property = {}
-        self.characteristics[Layer.ONE] = []
-        self.characteristics[Layer.TWO] = []
-        self.characteristics[Layer.THREE] = []
-        self.characteristics[Layer.FOUR] = []
-        self.characteristics[Layer.FIVE] = []
-        self.characteristics[Layer.SIX] = []
-        self.characteristics[Layer.SIX_0] = []
-        self.characteristics[Layer.SIX_A] = []
-        self.characteristics[Layer.SIX_B] = []
-        self.characteristics[Layer.SIX_C] = []
-        self.characteristics[Layer.SIX_D] = []
-        self.characteristics[Layer.SIX_E] = []
+        self.modifiers[Layer.ONE] = []
+        self.modifiers[Layer.TWO] = []
+        self.modifiers[Layer.THREE] = []
+        self.modifiers[Layer.FOUR] = []
+        self.modifiers[Layer.FIVE] = []
+        self.modifiers[Layer.SIX] = []
+        self.modifiers[Layer.SIX_0] = []
+        self.modifiers[Layer.SIX_A] = []
+        self.modifiers[Layer.SIX_B] = []
+        self.modifiers[Layer.SIX_C] = []
+        self.modifiers[Layer.SIX_D] = []
+        self.modifiers[Layer.SIX_E] = []
         self.tapped = False
         self.flipped = False
         self.phasedIn = False
@@ -355,7 +333,7 @@ class Game():
                 self, gameActions.moveToZone, obj, Zone.FIELD, None)
         else:
             for effect in obj.effect:
-                gameActions.evaluate(self, *effect)
+                gameActions.evaluate(self, **effect)
 
     def push(self, obj):
         pass
@@ -412,7 +390,7 @@ class Game():
             for key in player.cards:
                 result = cards_db.find_one(name=key)
                 module_ = import_module(result['filepath'])
-                class_ = getattr(module_, result['name'].replace(" ", ""))
+                class_ = getattr(module_, result['name'].replace(" ", "").replace("'", ""))
                 for _ in range(player.cards[key]):
                     card = class_(self, player, key)
                     player.deck.append(card)
@@ -470,45 +448,120 @@ class Game():
 
 
 class TargetRestriction():
-    def __init__(self, game, rulesText):
+    def __init__(self, game, rulesText, numRequired=1, doesTarget=False, zones=None, controllers=None, cardTypes=None, tapped=None, untapped=None, instanceID=None, memID=None, cmc=None, power=None, toughness=None, playerIDs=None, gte=None, lte=None, customFunction=None):
         self.game = game
         self.rulesText = rulesText
-        self.allowedZones = []  # Zones to check in
-        self.controller = []
-        self.cardTypes = []
+        self.controllers = controllers
+        self.zones = zones  # Zones to check incon
 
-        self.tapped = None
-        self.untapped = None
+        self.instanceID = instanceID
+        self.memID = memID
 
-        self.cmcGTE = None
-        self.cmcLTE = None
-        self.cmc = None
+        self.tapped = tapped
+        self.untapped = untapped
 
-        self.powerGTE = None
-        self.powerLTE = None
-        self.power = None
+        self.gte = gte
+        self.lte = lte
+        self.cmc = cmc
+        self.power = power
+        self.toughness = toughness
+        self.cardTypes = cardTypes
 
-        self.toughnessGTE = None
-        self.toughnessLTE = None
-        self.toughness = None
+        self.playerIDs = []
 
-        self.playerID = []
-        self.instanceID = []
-        self.memID = []
-        self.name = None
-        self.customFunction = None
-
+        self.customFunction = customFunction
         self.x = 0
-        self.doesTarget = False
-        self.numRequired = 0
+        self.doesTarget = doesTarget
+        self.numRequired = numRequired
 
-    def hasLegalTargets(self, game):
-        # Returns True if their are legal targets, False otherwise
-        pass
+    def hasController(self, card):
+        return True if card.controller in self.controllers else False
 
-    def getLegalTargets(self, game):
-        # Return all legal targets
-        pass
+    def InZone(self, card):
+        return True if card.currentZone in self.zones else False
+
+    def hasInstanceID(self, card):
+        return True if card.instanceID == self.instanceID else False
+
+    def hasMemID(self, card):
+        return True if card.memID == self.memID else False
+
+    def isTapped(self, card):
+        return True if card.tapped else False
+
+    def isUntapped(self, card):
+        return False if card.tapped else True
+
+    def hasCMC(self, card):
+        if gte:
+            return True if card.getCMC() > self.cmc else False
+        if lte:
+            return True if card.getCMC() < self.cmc else False
+
+        return True if card.getCMC() == self.cmc else False
+
+    def hasPower(self, card):
+        if gte:
+            return True if card.power > self.power else False
+        if lte:
+            return True if card.power < self.power else False
+
+        return True if card.power == self.power else False
+
+    def hasToughness(self, card):
+        if gte:
+            return True if card.power > self.power else False
+        if lte:
+            return True if card.power < self.power else False
+
+        return True if card.power == self.power else False
+
+    def hasCardTypes(self, card):
+        for cardType in self.cardTypes:
+            if cardType not in card.cardTypes:
+                return False
+        return True
+
+    def canTarget(self, card):
+        return gameActions.isLegal(game, target, card=card)
+
+    def getLegalTargets(self, game, player):
+        selectable = game.allCards.values()
+
+        if self.zones:
+            selectable = filter(self.InZone, selectable)
+
+        if self.controllers:
+            selectable = filter(self.hasController, selectable)
+
+        if self.cardTypes:
+            selectable = filter(self.hasCardTypes, selectable)
+
+        if self.instanceID:
+            selectable = filter(self.hasInstanceID, selectable)
+
+        if self.memID:
+            selectable = filter(self.hasMemID, selectable)
+
+        if self.tapped:
+            selectable = filter(self.isTapped, selectable)
+
+        if self.untapped:
+            selectable = filter(self.isUntapped, selectable)
+
+        if self.cmc:
+            selectable = filter(self.hasCMC, selectable)
+
+        if self.power:
+            selectable = filter(self.hasPower, selectable)
+
+        if self.toughness:
+            selectable = filter(self.hasToughness, selectable)
+
+        if self.doesTarget:
+            selectable = filter(self.canTarget, selectable)
+
+        return selectable
 
 
 class gameListener():  # Used for Triggered Abilties
@@ -643,7 +696,7 @@ class Cost():
 
         if self.additional != []:
             for cost in self.additional:
-                gameActions.evaluate(game, *cost)
+                gameActions.evaluate(game, **cost)
 
         return True
 
@@ -687,40 +740,79 @@ class Tracker():
 
 
 class Ability():
-    def __init__(self, game, source, allowedZones, rulesText, isManaAbility, keywordName):
+    """Base class for all abilites.
+
+    Attributes:
+        game (Game): Game object associated with this ability.
+        source (str): InstanceID of the card this ability originates from.
+        rulesText (str): Oracle text of this ability
+        allowedZones (set(Zone)): Zones where the source needs to be in order to use this ability.
+        isManaAbility (bool): Whether or not this ability is a mana ability.
+        keyword (Keyword or None): Is set if the ability is a keyword.
+        isActive (bool): Whether or not this ability is active.
+    """
+
+    def __init__(self, game, source, rulesText, allowedZones, isManaAbility, keyword):
+        self.game = game
         self.source = source
         self.rulesText = rulesText
-        self.keywordName = keywordName
+        self.keyword = keyword
         self.abilityID = 'A-' + str(uuid1())
         self.isManaAbility = isManaAbility
         self.allowedZones = allowedZones
-        self.specialTypes = set()  # Ex. Variable
+
+        self.isActive = False
         game.GAT[self.abilityID] = self
+
+    def getSource(self):
+        return game.allCards[self.source]
 
 
 class ActivatedAbility(Ability):
-    def __init__(self, game, source, cost, effect, allowedZones, rulesText, isManaAbility=False, keywordName=None):
-        super(ActivatedAbility, self).__init__(game, source,
-                                               allowedZones, rulesText, isManaAbility, keywordName)
-        self.cost = cost  # cost[0] is a mana cost, cost[1] is for other costs
+    """Class for activated abilites.
+
+    Attributes
+
+    """
+
+    def __init__(self, game, source, rulesText, cost, effect, allowedZones={Zone.FIELD}, isManaAbility=False, keyword=None):
+        super(ActivatedAbility, self).__init__(game, source, rulesText, allowedZones, isManaAbility, keyword)
+        self.cost = cost
         self.effect = effect
-        self.isActive = False
-
-    def getCost(self):
-        return self.cost
-
-    def getEffect(self):
-        return self.effect
 
 
 class TriggeredAbility(Ability):
-    # argDict {1: None,
-    #          3: self }
-    #   check the arg at index in the evaluated function and see if its equal to the value
-    def __init__(self, game, source, triggerFunction, argDict, effect, allowedZones, rulesText, isManaAbility=False, keywordName=None):
-        super(TriggeredAbility, self).__init__(game, source,
-                                               allowedZones, rulesText, isManaAbility, keywordName)
-        self.triggerFunction = triggerFunction
-        self.argDict = argDict
+    """
+    """
+
+    def __init__(self, game, source, rulesText, action, triggerFunc, effect, interveningIf=None, allowedZones={Zone.FIELD}, isManaAbility=False, keyword=None):
+        super(TriggeredAbility, self).__init__(game, source, rulesText, allowedZones, isManaAbility, keyword)
+        self.action = action
+        self.triggerFunc = triggerFunc
         self.effect = effect
-        self.isActive = False
+        self.interveningIf = interveningIf
+
+        if action.__name__ in game.triggers:
+            game.triggers[action].append(self)
+        else:
+            game.triggers[action] = [self]
+
+    def triggers(action, **params):
+        """Determines if the action being taken will trigger this ability
+
+        Args: 
+            action (function): Action being taken
+            params (dict): Parameters for the above action
+
+        Returns:
+            Bool: True if action will trigger this ability, False otherwise
+        """
+        if triggerFunc(action, **params):
+            if self.interveningIf and self.interveningIf(actionBeingDone, **params):
+                return True
+        return False
+
+    def trigger(action, **params):
+        """Returns 
+        """
+        pass

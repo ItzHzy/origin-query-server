@@ -22,7 +22,7 @@ def activateAbility(game, effect):
         game.push(effect)
 
 
-def loseLife(game, player, amountToLose):
+def loseLife(game, source, player, amountToLose):
     """Set the life total for selected player to (current life - the amount to lose)
 
     Args:
@@ -45,7 +45,7 @@ def loseLife(game, player, amountToLose):
     })
 
 
-def gainLife(game, player, amountToGain):
+def gainLife(game, source, player, amountToGain):
     """Set the life total for selected player to (current life + the amount to gain)
 
     Args:
@@ -84,11 +84,9 @@ def setLife(game, source, player, newTotal):
     if player.getLife() == newTotal:
         pass
     elif (player.getLife() > newTotal):
-        evaluate(game, loseLife, player=player,
-                 amountToLose=(player.getLife() - newTotal))
+        evaluate(game, loseLife, source=source, player=player, amountToLose=(player.getLife() - newTotal))
     else:
-        evaluate(game, gainLife, player=player,
-                 amountToGain=(newTotal - player.getLife()))
+        evaluate(game, gainLife, source=source, player=player, amountToGain=(newTotal - player.getLife()))
 
 
 def drawCard(game, player):
@@ -653,6 +651,7 @@ def isReplaced(game, action, **params):
 
 
 def evaluate(game, action, alreadyReplaced=[], **params):
+    print(action, alreadyReplaced, params)
     """Important method for the engine. Detailed in LexMagico.md
 
     Args:
@@ -686,21 +685,22 @@ def evaluate(game, action, alreadyReplaced=[], **params):
                         # returns (newAction, newParams)
                         newAction = replacement.replace(action, **params)
 
-                        evaluate(game, newAction[0], alreadyReplaced=alreadyReplaced.append(
-                            replacement.getSource()), **newAction[1])
+                        evaluate(game, newAction[0], alreadyReplaced=alreadyReplaced.append(replacement.getSource()), **newAction[1])
                         break
 
         if not replacementDone:
             # Resolve action
             action(game, **params)
 
-            for tracker in game.trackers:
-                # TODO: implement tracker logic
-                tracker.run()
+            if action in game.trackers:
+                for tracker in game.trackers[action]:
+                    # TODO: implement tracker logic
+                    tracker.run()
 
-            for trigger in game.triggers:
-                if trigger.isActive:
-                    if trigger.triggers(action, **params):
-                        trigger.getSource().getController().awaitingTriggers.append(trigger.trigger())
+            if action in game.triggers:
+                for trigger in game.triggers[action]:
+                    if trigger.isActive:
+                        if trigger.triggers(action, **params):
+                            trigger.getSource().controller.awaitingTriggers.append(trigger.trigger(action, **params))
 
     return None

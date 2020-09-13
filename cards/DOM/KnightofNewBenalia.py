@@ -10,7 +10,13 @@ class KnightofNewBenalia(Card):
 
         self.manaCost = {ManaType.WHITE: 1, ManaType.GENERIC: 1}
 
-        self.characteristics[Layer.BASE] = ("Knight of New Benalia", 3, 1, [], {
-                                            Type.CREATURE, Subtype.HUMAN, Subtype.KNIGHT}, {Color.WHITE})
+        self.printed = {
+            "name": "Knight of New Benalia",
+            "power": 3,
+            "toughness": 1,
+            "abilities": [],
+            "types": {Type.CREATURE, Subtype.HUMAN, Subtype.KNIGHT},
+            "colors": {Color.WHITE}
+        }
 
-        self.updateCharacteristics()
+        self.update()

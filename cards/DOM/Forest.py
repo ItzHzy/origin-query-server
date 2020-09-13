@@ -1,20 +1,36 @@
-from enumeratedTypes import * 
-from combatFunctions import * 
-from gameElements import * 
+from enumeratedTypes import *
+from combatFunctions import *
+from gameElements import *
 from gameActions import *
+
 
 class Forest(Card):
     def __init__(self, game, player, key):
         super(Forest, self).__init__(game, player, key)
 
-        c1 = [{}, [[tap, self]]]
+        # AA: {T}: Add {F}
 
-        e1 = [[addMana, self.controller, Color.GREEN, 1]]
-        
+        # C: {T}
+        c1 = ({}, [[tap, self]])
+        # End
+
+        # E: Add {G}
+        e1 = [
+            [addMana, self.controller, Color.GREEN, 1]
+        ]
+        # End
+
         r1 = f"{{T}}: Add {{G}}."
+        a1 = ActivatedAbility(game, self, r1, c1, e1, allowedZones={Zone.FIELD}, isManaAbility=True)
+        # End
 
-        a1 = ActivatedAbility(game, self, c1, e1, {Zone.FIELD}, r1, True)
+        self.printed = {
+            "name": "Forest",
+            "power": 0,
+            "toughness": 0,
+            "abilities": [a1],
+            "types": {Supertype.BASIC, Type.LAND, Subtype.FOREST},
+            "colors": {Color.COLORLESS}
+        }
 
-        self.characteristics[Layer.BASE] = ("Forest", 0, 0, [a1], {Supertype.BASIC, Type.LAND, Subtype.FOREST}, {Color.COLORLESS})
-
-        self.updateCharacteristics()
+        self.update()

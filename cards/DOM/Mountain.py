@@ -1,20 +1,36 @@
-from enumeratedTypes import * 
-from combatFunctions import * 
-from gameElements import * 
+from enumeratedTypes import *
+from combatFunctions import *
+from gameElements import *
 from gameActions import *
+
 
 class Mountain(Card):
     def __init__(self, game, player, key):
         super(Mountain, self).__init__(game, player, key)
 
-        c1 = [{}, [[tap, self]]]
+        # AA: {T}: Add {U}
 
-        e1 = [[addMana, self.controller, Color.RED, 1]]
-        
+        # C: {T}
+        c1 = ({}, [[tap, self]])
+        # End
+
+        # E: Add {U}
+        e1 = [
+            [addMana, self.controller, Color.RED, 1]
+        ]
+        # End
+
         r1 = f"{{T}}: Add {{R}}."
+        a1 = ActivatedAbility(game, self, r1, c1, e1, allowedZones={Zone.FIELD}, isManaAbility=True)
+        # End
 
-        a1 = ActivatedAbility(game, self, c1, e1, {Zone.FIELD}, r1, True)
+        self.printed = {
+            "name": "Mountain",
+            "power": 0,
+            "toughness": 0,
+            "abilities": [a1],
+            "types": {Supertype.BASIC, Type.LAND, Subtype.MOUNTAIN},
+            "colors": {Color.COLORLESS}
+        }
 
-        self.characteristics[Layer.BASE] = ("Mountain", 0, 0, [a1], {Supertype.BASIC, Type.LAND, Subtype.MOUNTAIN}, {Color.COLORLESS})
-
-        self.updateCharacteristics()
+        self.update()
