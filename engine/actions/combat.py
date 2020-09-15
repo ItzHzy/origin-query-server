@@ -1,14 +1,14 @@
-import gameElements
 import asyncio
-from enumeratedTypes import *  # pylint: disable=unused-wildcard-import
-import gameActions
+
+from gameActions import evaluate, loseLife
+from gameElements import Card, Game, Player
 
 
 def markDamage(game, source, target, amountToMark):
     """Marks creature with damage.
 
     Args:
-        game (Game): Game State
+        game (Game): Game State.
         source (Card): Source that is causing the marked damage
         target (Card): Card that is being marked with damage
         amountToMark (int): The amount of damage to mark on a creature
@@ -26,20 +26,20 @@ def removeAllDamage(game):
 
 
 def removeDamage(game, source, target):
-    """Removes all damage marked on card
+    '''Removes all damage marked on card.
 
     Args:
-        game (Game): Game state object
-        source (Object): The object that is removing the damage
-        target (Card): Creature to remove all damage from
+        game (Game): Game state object.
+        source (Object): The object that is removing the damage.
+        target (Card): Creature to remove all damage from.
 
     Returns:
         None
-    """
+    '''
     target.damageMarked = 0
 
 
-def dealDamage(game, source, target, amountToDeal):
+def dealDamage(game: Game, source, target, amountToDeal):
     """Deals Damage to target depending in its type
 
     Args:
@@ -49,13 +49,13 @@ def dealDamage(game, source, target, amountToDeal):
         amountToDeal (int): The amount of damage to deal to the target
 
     Returns:
-        None
+        None.
     """
 
-    if isinstance(target, gameElements.Card):
+    if isinstance(target, Card):
         markDamage(game, source, target, amountToDeal)
-    elif isinstance(target, gameElements.Player):
-        gameActions.evaluate(game, gameActions.loseLife, source=source, player=target, amountToLose=amountToDeal)
+    elif isinstance(target, Player):
+        evaluate(game, loseLife, source=source, player=target, amountToLose=amountToDeal)
 
 
 def dealCombatDamage(game, source, target, amountToDeal):
@@ -67,19 +67,20 @@ def dealCombatDamage(game, source, target, amountToDeal):
         target (Card or Player): Target that is taking the damage
         amountToDeal (Int): Amount of combat damage to deal to target
     """
-    gameActions.evaluate(game, dealDamage, source=source, target=target, amountToDeal=amountToDeal)
+    evaluate(game, dealDamage, source=source, target=target, amountToDeal=amountToDeal)
 
 
 def dealNonCombatDamage(game, source, target, amountToDeal):
     """Deals Non-Combat to the target.
 
     Args:
-        game (Game): Game state object
+        game (Game): Game state object. 
         source (Card): Source that is dealing the damage
         target (Card or Player): Target that is taking the damage
         amountToDeal (Int): Amount of damage to deal to target
+
     """
-    gameActions.evaluate(game, dealDamage, source=source, target=target, amountToDeal=amountToDeal)
+    evaluate(game, dealDamage, source=source, target=target, amountToDeal=amountToDeal)
 
 
 async def chooseAttackers(game, activePlayer):
@@ -162,7 +163,7 @@ def declareAttackers(game, declaredAttacks):
     # Check if the declared attacks are legal
     for attacker in declaredAttacks:
         defender = declaredAttacks[attacker]
-        if not gameActions.isLegal(game, attack, attacker, defender):
+        if not isLegal(game, attack, attacker, defender):
             return False
 
     # Set combat statuses for creatures and players

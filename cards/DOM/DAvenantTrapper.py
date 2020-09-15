@@ -1,9 +1,3 @@
-from gameElements import *
-from combatFunctions import *
-from gameActions import *
-from enumeratedTypes import *
-
-
 class DAvenantTrapper(Card):
     def __init__(self, game, player, key):
         super(DAvenantTrapper, self).__init__(game, player, key)
@@ -16,7 +10,7 @@ class DAvenantTrapper(Card):
         def f1(action, **params):
             if params["card"].isHistoric():
                 return True
-            return False
+                return False
         # End
 
         # tap target creature an opponent controls
