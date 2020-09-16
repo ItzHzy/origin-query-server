@@ -1,3 +1,10 @@
+from uuid import uuid1
+
+from consts.counter import Counter
+from consts.layer import Layer
+from consts.type import Subtype, Supertype, Type
+
+
 class Card():
     def __init__(self, game, player, oracle):
         self.name = None
@@ -37,7 +44,7 @@ class Card():
         self.isCopy = False
         self.isToken = False
 
-        self.printed = None
+        self.printed = {}
         self.modifiers = {
             Layer.ONE: [],
             Layer.TWO: [],
@@ -84,11 +91,11 @@ class Card():
         pass
 
     def addModifier(self, modifier):
-        self.attributes[modifier["layer"]].append(modifier)
+        self.modifiers[modifier["layer"]].append(modifier)
         self.update()
 
     def removeModifier(self, modifier):
-        self.attributes[modifier["layer"]].remove(modifier)
+        self.modifiers[modifier["layer"]].remove(modifier)
         self.update()
 
     def update(self):
@@ -151,7 +158,7 @@ class Card():
             self.power -= self.counters[Counter.M1M1]
             self.toughness -= self.counters[Counter.M1M1]
 
-        for switch in self.modifiers[Layer.SIX_E]:
+        for _ in self.modifiers[Layer.SIX_E]:
             temp = self.power
             self.power = self.toughness
             self.toughness = temp

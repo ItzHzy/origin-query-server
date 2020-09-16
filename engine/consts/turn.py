@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 class Turn(Enum):
     EXTRA = auto()
     UNTAP = auto()

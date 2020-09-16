@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 class Zone(Enum):
     DECK = auto()
     GRAVE = auto()

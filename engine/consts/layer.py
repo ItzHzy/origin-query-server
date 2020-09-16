@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 class Layer:
     BASE = auto()  # (name, power, toughness, abilities, types, colors)
     ONE = auto()  # copy abilities (name, power, toughness, abilities, types, colors)

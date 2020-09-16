@@ -1,3 +1,6 @@
+from actions.evaluate import evaluate
+
+
 def untap(game, card):
     """Untap card
 

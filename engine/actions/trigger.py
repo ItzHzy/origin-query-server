@@ -13,3 +13,7 @@ def dies(game, card):
         None
     """
     pass
+
+
+def target(game, card):
+    pass

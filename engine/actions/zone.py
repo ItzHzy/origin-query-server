@@ -1,3 +1,7 @@
+from actions.evaluate import evaluate
+from consts.zone import Zone
+
+
 def drawCard(game, player):
     """Selected player draws a card
 

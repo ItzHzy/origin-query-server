@@ -1,3 +1,7 @@
+from actions.evaluate import isLegal
+from actions.trigger import target
+
+
 class Effect():
     """Structure of effect list:
     [
@@ -73,25 +77,25 @@ class TargetRestriction():
         return False if card.tapped else True
 
     def hasCMC(self, card):
-        if gte:
+        if self.gte:
             return True if card.getCMC() > self.cmc else False
-        if lte:
+        if self.lte:
             return True if card.getCMC() < self.cmc else False
 
         return True if card.getCMC() == self.cmc else False
 
     def hasPower(self, card):
-        if gte:
+        if self.gte:
             return True if card.power > self.power else False
-        if lte:
+        if self.lte:
             return True if card.power < self.power else False
 
         return True if card.power == self.power else False
 
     def hasToughness(self, card):
-        if gte:
+        if self.gte:
             return True if card.power > self.power else False
-        if lte:
+        if self.lte:
             return True if card.power < self.power else False
 
         return True if card.power == self.power else False
@@ -103,7 +107,7 @@ class TargetRestriction():
         return True
 
     def canTarget(self, card):
-        return gameActions.isLegal(game, target, card=card)
+        return isLegal(self.game, target, card=card)
 
     def getLegalTargets(self, game, player):
         selectable = game.allCards.values()

@@ -1,3 +1,11 @@
+from actions.card import untapAll
+from actions.combat import removeAllDamage, resolveCombatMatrix, resolveCombatMatrix_FS, chooseAttackers, chooseBlockers
+from actions.evaluate import evaluate
+from actions.mana import emptyManaPools
+from actions.zone import discardToHandSize, drawCard, phaseIn
+from consts.turn import Turn
+
+
 def endPhase(game, activePlayer, phase):
     """End the current phase
 
@@ -37,6 +45,38 @@ def beginPhase(game, activePlayer, phase):
 
 
 async def doPhaseActions(game):
+    currPhase = game.currPhase
+    activePlayer = game.activePlayer
+    print(currPhase)
+
+    if currPhase == Turn.UNTAP:
+        phaseIn(game, activePlayer)
+        # checkSBA(game)
+        untapAll(game, activePlayer)
+    elif currPhase == Turn.UPKEEP:
+        phaseIn(game, activePlayer)
+    elif currPhase == Turn.DRAW:
+        evaluate(game, drawCard, player=activePlayer)
+    elif currPhase == Turn.DECLARE_ATTACKS:
+        await chooseAttackers(game, activePlayer)
+    elif currPhase == Turn.DECLARE_BLOCKS:
+        for player in game.getOpponents(activePlayer):
+            if player.isDefending:
+                await chooseBlockers(game, player)
+    elif currPhase == Turn.FIRST_COMBAT_DAMAGE:
+        resolveCombatMatrix_FS(game)
+    elif currPhase == Turn.SECOND_COMBAT_DAMAGE:
+        resolveCombatMatrix(game)
+    elif currPhase == Turn.CLEANUP:
+        discardToHandSize(game, activePlayer)
+        removeAllDamage(game)
+        # Check for SBAs and complete loop rule 514
+
+
+def goToNextPhase(game):
+    currPhase = game.currPhase
+    activePlayer = game.activePlayer
+
     nextPhase = {
         Turn.UNTAP: Turn.UPKEEP,
         Turn.UPKEEP: Turn.DRAW,
@@ -52,55 +92,23 @@ async def doPhaseActions(game):
         Turn.BEGIN_END: Turn.CLEANUP
     }
 
-    currPhase = game.currPhase
-    activePlayer = game.activePlayer
-    print(currPhase)
-
-    if currPhase == Turn.UNTAP:
-        gameActions.phaseIn(game, activePlayer)
-        # checkSBA(game)
-        gameActions.untapAll(game, activePlayer)
-    elif currPhase == Turn.UPKEEP:
-        gameActions.phaseIn(game, activePlayer)
-    elif currPhase == Turn.DRAW:
-        gameActions.evaluate(game, gameActions.drawCard, player=activePlayer)
-    elif currPhase == Turn.DECLARE_ATTACKS:
-        await combatFunctions.chooseAttackers(game, activePlayer)
-    elif currPhase == Turn.DECLARE_BLOCKS:
-        for player in game.getOpponents(activePlayer):
-            if player.isDefending:
-                await combatFunctions.chooseBlockers(game, player)
-    elif currPhase == Turn.FIRST_COMBAT_DAMAGE:
-        combatFunctions.resolveCombatMatrix_FS(game)
-    elif currPhase == Turn.SECOND_COMBAT_DAMAGE:
-        combatFunctions.resolveCombatMatrix(game)
-    elif currPhase == Turn.CLEANUP:
-        gameActions.discardToHandSize(game, activePlayer)
-        combatFunctions.removeAllDamage(game)
-        # Check for SBAs and complete loop rule 514
-
-
-def goToNextPhase(game):
-    currPhase = game.currPhase
-    activePlayer = game.activePlayer
-
-    gameActions.evaluate(game, gameActions.endPhase, activePlayer=activePlayer, phase=currPhase)
+    evaluate(game, endPhase, activePlayer=activePlayer, phase=currPhase)
     if currPhase == Turn.CLEANUP and Turn.EXTRA in activePlayer.property and activePlayer.property[Turn.EXTRA] > 0:
         activePlayer.property[Turn.EXTRA] -= 1
-        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=Turn.UNTAP)
+        evaluate(game, beginPhase, activePlayer=activePlayer, phase=Turn.UNTAP)
 
     elif currPhase == Turn.CLEANUP:
         nextPlayer = game.getNextPlayer(activePlayer)
-        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=nextPlayer, phase=Turn.UNTAP)
+        evaluate(game, beginPhase, activePlayer=nextPlayer, phase=Turn.UNTAP)
 
     elif currPhase in activePlayer.property and activePlayer.property[currPhase] > 0:
         activePlayer.property[currPhase] -= 1
-        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=currPhase)
+        evaluate(game, beginPhase, activePlayer=activePlayer, phase=currPhase)
 
     elif currPhase == Turn.DECLARE_ATTACKS and game.COMBAT_MATRIX == {}:
-        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=Turn.END_COMBAT)
+        evaluate(game, beginPhase, activePlayer=activePlayer, phase=Turn.END_COMBAT)
     else:
-        gameActions.evaluate(game, gameActions.beginPhase, activePlayer=activePlayer, phase=nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
+        evaluate(game, beginPhase, activePlayer=activePlayer, phase=nextPhase[currPhase])  # pylint: disable=unsubscriptable-object
 
 
 def givePriority(game, player):

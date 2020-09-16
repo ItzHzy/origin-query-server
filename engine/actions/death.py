@@ -1,3 +1,9 @@
+from actions.evaluate import evaluate, isLegal, isReplaced
+from actions.trigger import dies
+from actions.zone import moveToZone
+from consts.zone import Zone
+
+
 def sacrifice(game, source, card):
     """Sacrifices the target card.
 

@@ -1,3 +1,6 @@
+from actions.evaluate import evaluate
+
+
 def loseLife(game, source, player, amountToLose):
     """Set the life total for selected player to (current life - the amount to lose)
 

@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 class Counter(Enum):
     POISON = auto()
     LOYALTY = auto()

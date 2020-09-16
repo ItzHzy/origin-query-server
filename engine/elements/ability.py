@@ -1,3 +1,8 @@
+from uuid import uuid1
+
+from consts.zone import Zone
+
+
 class Ability():
     """Base class for all abilites.
 
@@ -24,7 +29,7 @@ class Ability():
         game.GAT[self.abilityID] = self
 
     def getSource(self):
-        return game.allCards[self.source]
+        return self.game.allCards[self.source]
 
 
 class ActivatedAbility(Ability):
@@ -56,7 +61,7 @@ class TriggeredAbility(Ability):
         else:
             game.triggers[action] = [self]
 
-    def triggers(action, **params):
+    def triggers(self, action, **params):
         """Determines if the action being taken will trigger this ability
 
         Args: 
@@ -66,12 +71,12 @@ class TriggeredAbility(Ability):
         Returns:
             Bool: True if action will trigger this ability, False otherwise
         """
-        if triggerFunc(action, **params):
-            if self.interveningIf and self.interveningIf(actionBeingDone, **params):
+        if self.triggerFunc(action, **params):
+            if self.interveningIf and self.interveningIf(action, **params):
                 return True
         return False
 
-    def trigger(action, **params):
+    def trigger(self, action, **params):
         """Returns 
         """
         pass

@@ -1,3 +1,6 @@
+from enum import Enum, auto
+
+
 class Split(Enum):
     DFC = auto()
     AFTERMATH = auto()

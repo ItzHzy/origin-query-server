@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 class ManaType(Enum):
     WHITE = auto()
     BLUE = auto()

@@ -30,9 +30,8 @@ def isReplaced(game, action, **params):
 
     for replacement in game.replacements:
         if replacement.isActive:
-            if replacement.getSource() not in alreadyReplaced:
-                if replacement.isReplaced(action, **params):
-                    return True
+            if replacement.isReplaced(action, **params):
+                return True
 
     return False
 
